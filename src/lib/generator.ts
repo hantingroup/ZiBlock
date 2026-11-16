@@ -79,21 +79,21 @@ function blockToCode(
   return joinBlock(block, '', code);
 }
 
-Generator.scrub_ = (block: Blockly.Block, code: string) => {
-  if (block.getParent())
-    return code;
-  return joinBlock(block, '', code);
+Generator.scrub_ = (block: Blockly.Block, code: string, thisOnly: boolean) => {
+  if (!block.getParent())
+    code = joinBlock(block, '', code)
+  return code;
 }
 
 // Text =======================================================================
 
 Generator.forBlock['text_multiline'] =
-  Generator.forBlock['text'] = (block: Blockly.Block) => {
+Generator.forBlock['text'] = (block: Blockly.Block) => {
     return block.getFieldValue('TEXT');
   }
 
 Generator.forBlock['translate_multiline'] =
-  Generator.forBlock['translate'] = (block: Blockly.Block) => {
+Generator.forBlock['translate'] = (block: Blockly.Block) => {
     return translate(block.getFieldValue('TEXT'));
   }
 

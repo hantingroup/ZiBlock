@@ -6,9 +6,9 @@ contents:
     name: 文本
     colour: "%{BKY_TEXTS_HUE}"
     contents:
-      - { kind: block, type: text }
+      # - { kind: block, type: text }
       - { kind: block, type: text_multiline }
-      - { kind: block, type: translate }
+      # - { kind: block, type: translate }
       - { kind: block, type: translate_multiline }
       - { kind: block, type: translate_block }
       - { kind: block, type: lexicon }
@@ -21,7 +21,10 @@ contents:
       # - { kind: block, type: number }
       - kind: block
         type: number_block
-        inputs: { BODY: &shadow_multiline { shadow: { type: text_multiline } } }
+        inputs:
+          BODY: &shadow_multiline
+            shadow:
+              type: text_multiline
       # - { kind: block, type: calculate }
       - kind: block
         type: calculate_block
