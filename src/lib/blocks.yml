@@ -152,7 +152,7 @@
   args0: [*variable_var]
   message1: 为 %1
   args1: [*statement_body]
-  message2: "回响 %1"
+  message2: "显示 %1"
   args2:
     - &checkbox_echo
       type: field_checkbox
@@ -169,7 +169,7 @@
       name: VAR
   message1: 为 %1
   args1: [*statement_body]
-  message2: "回响 %1"
+  message2: "显示 %1"
   args2: [*checkbox_echo]
   <<: *variables_set
 
