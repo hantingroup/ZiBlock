@@ -54,7 +54,7 @@ function translate(text: string | null) {
   return `${Symbols.Head}${text || ''}${Symbols.Tail}`;
 }
 
-const Generator = new Blockly.Generator('tianzi')
+const Generator = new Blockly.Generator('tzlang')
 export default Generator
 
 const extractCode = (code: string | [string, number]) => {
