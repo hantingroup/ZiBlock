@@ -6,16 +6,26 @@
 	let compiledCode = $state("");
 	let compileError = $state("");
 
+	const lexs = resource(
+		() => "https://tianzi.hongbot.icu/api/lex/list",
+		async (url, _, { signal }) => {
+			// fetch("https://tianzi.hongbot.icu/api/lex/jsonmeta/县以上行政区划")
+			const res = await fetch(url, { signal });
+			return await res.json() as { names: string[] };
+		}
+	)
+
 	const executeResource = resource(
 		() => compiledCode,
 		async (cmd, _, { signal }) => {
-			const res = await fetch(`https://api.hongbot.icu/tianzi`, {
+			const res = await fetch(`https://tianzi.hongbot.icu/api/tianzi`, {
 				signal,
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ cmd }),
 			});
 			const data = await res.json();
+			console.log(data);
 			return data.msg;
 		},
 	);
