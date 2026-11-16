@@ -89,7 +89,7 @@ Generator.scrub_ = (block: Blockly.Block, code: string) => {
 
 Generator.forBlock['text_multiline'] =
   Generator.forBlock['text'] = (block: Blockly.Block) => {
-    return escape(block.getFieldValue('TEXT'));
+    return block.getFieldValue('TEXT');
   }
 
 Generator.forBlock['translate_multiline'] =
@@ -98,7 +98,7 @@ Generator.forBlock['translate_multiline'] =
   }
 
 Generator.forBlock['translate_block'] = (block: Blockly.Block) => {
-  return translate(blockToCode(block.getInputTargetBlock('BODY')));
+  return translate(escape(blockToCode(block.getInputTargetBlock('BODY'))));
 }
 
 // Math =======================================================================
