@@ -2,6 +2,10 @@
   import ".";
   import * as Blockly from "blockly";
 
+  // The default (15px) is chunky next to the grid; keep scrolling usable but
+  // visually lighter. Must be set before Blockly.inject creates scrollbars.
+  Blockly.Scrollbar.scrollbarThickness = 10;
+
   const STORAGE_KEY = "ziblock:workspace";
 
   // Dev only: keep the workspace across Vite HMR updates and full reloads.
@@ -69,6 +73,10 @@
       zoom: { controls: true, pinch: true, wheel: true },
       ...props,
     });
+    // Keep the category flyout open: clicking the canvas or dragging a block
+    // out no longer closes it, so several blocks can be picked in a row.
+    const flyout = workspace.getFlyout();
+    if (flyout instanceof Blockly.Flyout) flyout.setAutoClose(false);
     restoreWorkspace(workspace);
     emit(workspace);
     workspace.addChangeListener((event) => {
