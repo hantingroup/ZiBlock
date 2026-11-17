@@ -11,6 +11,14 @@ contents:
       # - { kind: block, type: translate }
       - { kind: block, type: translate_multiline }
       - { kind: block, type: translate_block }
+
+  # Lexicon ===================================================================
+  # Query condition blocks live in the lexicon block's gear (see
+  # lexicon-mutator.ts), not in the toolbox.
+  - kind: category
+    name: 词库
+    colour: "%{BKY_TEXTS_HUE}"
+    contents:
       - { kind: block, type: lexicon }
 
   # Math ======================================================================

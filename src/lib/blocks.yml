@@ -46,11 +46,118 @@
   <<: *text_translate
 
 - type: lexicon
-  message0: "词典 %1 查询 %2"
+  message0: "词典 %1 输出 %2"
   args0:
-    - { type: field_input, name: NAME }
-    - { type: field_input, name: QUERY }
-  <<: *text
+    - { type: field_lexicon_name, name: NAME }
+    - { type: field_lexicon_field, name: FIELD }
+  message1: "查询 %1"
+  args1:
+    - { type: field_label, name: SUMMARY, text: "无" }
+  <<:
+    <<: *text
+    mutator: lexicon_mutator
+    extensions: [lexicon_block]
+
+# Lexicon query blocks =======================================================
+# Conditions output Cond:<kind>; lexicon_group binds one to a schema and
+# outputs TzSegment; lexicon_and / lexicon_or live in lexicon-ui.ts.
+# Connection checks encode the DSL grammar:
+#   ! (Cond:* -> Cond:*) > & (TzClause) > | (TzQuery)
+
+- type: lexicon_group
+  message0: "组 %1 %2"
+  args0:
+    - { type: field_group_name, name: GROUP }
+    - type: input_value
+      name: ITEM
+      check:
+        - Cond:pinyin
+        - Cond:wordLength
+        - Cond:path
+        - Cond:enumValue
+        - Cond:index
+        - Cond:regex
+  output: "TzSegment"
+  style: text_blocks
+  extensions: [lexicon_group_block]
+
+- type: lexicon_not
+  message0: "非 %1"
+  args0:
+    - type: input_value
+      name: ITEM
+      check:
+        - Cond:pinyin
+        - Cond:wordLength
+        - Cond:path
+        - Cond:enumValue
+        - Cond:index
+        - Cond:regex
+  output: "Cond:unknown"
+  style: text_blocks
+  extensions: [lexicon_not_block]
+
+- type: lexicon_pinyin
+  message0: "拼音 %1"
+  args0:
+    - { type: field_input, name: PATTERN }
+  output: "Cond:pinyin"
+  style: text_blocks
+  extensions: [lexicon_condition]
+
+- type: lexicon_word_length
+  message0: "词长 %1 %2"
+  args0:
+    - type: field_dropdown
+      name: COMPARISON
+      options:
+        - ["等于", "eq"]
+        - ["大于", "gt"]
+        - ["小于", "lt"]
+        - ["不小于", "gte"]
+        - ["不大于", "lte"]
+    - { type: field_number, name: LENGTH, value: 2, min: 0, precision: 1 }
+  output: "Cond:wordLength"
+  style: text_blocks
+  extensions: [lexicon_condition]
+
+- type: lexicon_path
+  message0: "路径 %1 %2"
+  args0:
+    - { type: field_input, name: PATH, text: "/辽宁省/沈阳市" }
+    - type: field_dropdown
+      name: DEPTH
+      options:
+        - ["直接子节点", "children"]
+        - ["所有后代", "descendants"]
+  output: "Cond:path"
+  style: text_blocks
+  extensions: [lexicon_condition]
+
+- type: lexicon_enum
+  message0: "枚举 %1"
+  args0:
+    - { type: field_enum_value, name: VALUE }
+  output: "Cond:enumValue"
+  style: text_blocks
+  extensions: [lexicon_condition, lexicon_enum_block]
+
+- type: lexicon_index
+  message0: "索引 %1 到 %2"
+  args0:
+    - { type: field_number, name: START, value: 0, min: 0, precision: 1 }
+    - { type: field_number, name: END, value: 0, min: 0, precision: 1 }
+  output: "Cond:index"
+  style: text_blocks
+  extensions: [lexicon_condition]
+
+- type: lexicon_regex
+  message0: "正则 %1"
+  args0:
+    - { type: field_input, name: SOURCE }
+  output: "Cond:regex"
+  style: text_blocks
+  extensions: [lexicon_condition]
 
 # Math ========================================================================
 

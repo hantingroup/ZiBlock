@@ -1,4 +1,21 @@
 import * as Blockly from 'blockly';
+import {
+  getCachedLexiconMeta,
+  groupSupportsCondition,
+  lex,
+  lexiconQuery,
+  renderExpression,
+  segment,
+  type Condition,
+  type LengthComparison,
+  type LexiconMeta,
+} from './lexicons';
+import {
+  conditionKindLabel,
+  effectiveConditionKind,
+  findEnclosingLexicon,
+  lexiconBlockName,
+} from './lexicon-ui';
 
 export const Symbols = {
   // Symbols
@@ -54,6 +71,9 @@ function translate(text: string | null) {
   return `${Symbols.Head}${text || ''}${Symbols.Tail}`;
 }
 
+// Blockly's ORDER_NONE: passing it to valueToCode suppresses parentheses.
+const ORDER_NONE = 99
+
 const Generator = new Blockly.Generator('tzlang')
 export default Generator
 
@@ -100,6 +120,198 @@ Generator.forBlock['translate'] = (block: Blockly.Block) => {
 Generator.forBlock['translate_block'] = (block: Blockly.Block) => {
   return translate(escape(blockToCode(block.getInputTargetBlock('BODY'))));
 }
+
+// Lexicon ====================================================================
+
+/**
+ * Lexicon context for query generation. Queries normally hang off a lexicon
+ * block (or its gear-bubble root), but a saved query tree is regenerated in a
+ * throwaway workspace that has no such parent, so the context is passed
+ * explicitly while that happens.
+ */
+let queryContext: { name: string; meta?: LexiconMeta } | undefined;
+
+function contextFor(block: Blockly.Block): {
+  name: string;
+  meta?: LexiconMeta;
+} {
+  if (queryContext) return queryContext;
+  const lexicon = findEnclosingLexicon(block);
+  if (!lexicon) throw new Error('查询条件需要放在词库积木的查询里');
+  const name = lexiconBlockName(lexicon);
+  return { name, meta: name ? getCachedLexiconMeta(name) : undefined };
+}
+
+function withQueryContext<T>(name: string, fn: () => T): T {
+  const previous = queryContext;
+  queryContext = { name, meta: name ? getCachedLexiconMeta(name) : undefined };
+  try {
+    return fn();
+  } finally {
+    queryContext = previous;
+  }
+}
+
+/** Generates the DSL for a query tree that lives in a workspace. */
+export function queryBlockToDsl(block: Blockly.Block | null): string {
+  return block ? extractCode(Generator.blockToCode(block)) : '';
+}
+
+function isQueryBlock(block: Blockly.Block): boolean {
+  return !!block.outputConnection?.getCheck()?.includes('TzQuery');
+}
+
+interface QueryPart {
+  code: string;
+  isQuery: boolean;
+}
+
+/**
+ * Joins slots into one DSL clause. A `或` expression needs parentheses to be
+ * ANDed with anything else, which the fill-in language does not allow, so it
+ * has to stay on its own.
+ */
+function joinQueryParts(parts: readonly QueryPart[]): string {
+  const filled = parts.filter((part) => part.code);
+  if (filled.length > 1 && filled.some((part) => part.isQuery))
+    throw new Error('“或”需要单独作为一个查询，不能和其它条件并列');
+  return filled.map((part) => part.code).join('&');
+}
+
+/** Joins the blocks sitting in a multi-input block's slots into one DSL clause. */
+export function joinQueryBlocks(blocks: readonly Blockly.Block[]): string {
+  return joinQueryParts(
+    blocks.map((block) => ({
+      code: queryBlockToDsl(block),
+      isQuery: isQueryBlock(block),
+    })),
+  );
+}
+
+/** Generates the DSL for serialized query trees (lexicon block extra state). */
+export function queryDslFromStates(
+  states: readonly Blockly.serialization.blocks.State[] | null | undefined,
+  name: string,
+): string {
+  if (!states?.length) return '';
+  return withQueryContext(name, () => {
+    const parts: QueryPart[] = [];
+    for (const state of states) {
+      const workspace = new Blockly.Workspace();
+      try {
+        const tree = Blockly.serialization.blocks.append(state, workspace);
+        parts.push({ code: queryBlockToDsl(tree), isQuery: isQueryBlock(tree) });
+      } finally {
+        workspace.dispose();
+      }
+    }
+    return joinQueryParts(parts);
+  });
+}
+
+/** Renders one condition block as a DSL segment, validating against meta. */
+function renderCondition(block: Blockly.Block, condition: Condition): string {
+  const { meta } = contextFor(block);
+  return lexiconQuery(segment(condition), meta).build();
+}
+
+Generator.forBlock['lexicon_group'] = (block: Blockly.Block): [string, number] => {
+  const item = Generator.valueToCode(block, 'ITEM', ORDER_NONE);
+  const group = String(block.getFieldValue('GROUP') ?? '');
+  if (!item || !group) return [item, 3];
+
+  const { meta } = contextFor(block);
+  const kind = effectiveConditionKind(block.getInputTargetBlock('ITEM'));
+  if (meta && kind && !groupSupportsCondition(meta, group, kind))
+    throw new Error(`组“${group}”不支持${conditionKindLabel(kind)}查询`);
+
+  return [`${item}@${group}`, 3];
+};
+
+/** Shape of the extra state stored on the lexicon block (see lexicon-mutator). */
+type LexiconQueryState = Blockly.Block & {
+  queryStates?: Blockly.serialization.blocks.State[] | null;
+};
+
+Generator.forBlock['lexicon'] = (block: Blockly.Block) => {
+  const name = String(block.getFieldValue('NAME') ?? '');
+  const field = String(block.getFieldValue('FIELD') ?? '');
+  const states = (block as LexiconQueryState).queryStates ?? [];
+  return renderExpression(name, queryDslFromStates(states, name), field);
+}
+
+Generator.forBlock['lexicon_not'] = (block: Blockly.Block): [string, number] => {
+  const item = Generator.valueToCode(block, 'ITEM', ORDER_NONE);
+  return item ? [`!(${item})`, 3] : ['', 3];
+}
+
+function renderLogic(
+  block: Blockly.Block,
+  joiner: '&' | '|',
+  precedence: number,
+): [string, number] {
+  const parts: string[] = [];
+  for (let index = 0; block.getInput(`ITEM${index}`); index++) {
+    const code = Generator.valueToCode(block, `ITEM${index}`, ORDER_NONE);
+    if (code) parts.push(code);
+  }
+  return [parts.join(joiner), precedence];
+}
+
+Generator.forBlock['lexicon_and'] = (block: Blockly.Block) =>
+  renderLogic(block, '&', 2);
+
+Generator.forBlock['lexicon_or'] = (block: Blockly.Block) =>
+  renderLogic(block, '|', 1);
+
+Generator.forBlock['lexicon_pinyin'] = (block: Blockly.Block): [string, number] => [
+  renderCondition(block, lex.pinyin(String(block.getFieldValue('PATTERN') ?? ''))),
+  3,
+];
+
+Generator.forBlock['lexicon_word_length'] = (
+  block: Blockly.Block,
+): [string, number] => [
+  renderCondition(
+    block,
+    lex.wordLength(
+      Number(block.getFieldValue('LENGTH')),
+      String(block.getFieldValue('COMPARISON')) as LengthComparison,
+    ),
+  ),
+  3,
+];
+
+Generator.forBlock['lexicon_path'] = (block: Blockly.Block): [string, number] => {
+  const segments = String(block.getFieldValue('PATH') ?? '')
+    .split('/')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const depth =
+    block.getFieldValue('DEPTH') === 'descendants' ? 'descendants' : 'children';
+  return [renderCondition(block, lex.path(segments, depth)), 3];
+}
+
+Generator.forBlock['lexicon_enum'] = (block: Blockly.Block): [string, number] => [
+  renderCondition(block, lex.enum(String(block.getFieldValue('VALUE') ?? ''))),
+  3,
+];
+
+Generator.forBlock['lexicon_index'] = (block: Blockly.Block): [string, number] => [
+  renderCondition(
+    block,
+    lex.index(
+      Number(block.getFieldValue('START')),
+      Number(block.getFieldValue('END')),
+    ),
+  ),
+  3,
+];
+
+Generator.forBlock['lexicon_regex'] = (block: Blockly.Block): [string, number] => [
+  renderCondition(block, lex.regex(String(block.getFieldValue('SOURCE') ?? ''))),
+  3,
+];
 
 // Math =======================================================================
 
