@@ -265,30 +265,19 @@
     - <<: *input_text
       value: 0
   <<:
-    - &math_number
-      <<: &math_blocks
+    - <<: &math_blocks
         <<: *statements
         style: math_blocks
       tooltip: "%{BKY_MATH_NUMBER_TOOLTIP}"
       helpUrl: "%{BKY_MATH_NUMBER_HELPURL}"
 
-- type: number_block
-  message0: "# %1"
-  args0: [*statement_body]
-  <<: *math_number
-
 - type: calculate
   message0: = %1
   args0: [*input_text]
-  <<: &math_calculate
+  <<:
     <<: *math_blocks
     tooltip: "%{BKY_MATH_CALCULATE_TOOLTIP}"
     helpUrl: "%{BKY_MATH_CALCULATE_HELPURL}"
-
-- type: calculate_block
-  message0: = %1
-  args0: [*statement_body]
-  <<: *math_calculate
 
 - type: choice
   message0: 选择

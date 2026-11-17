@@ -40,24 +40,17 @@ contents:
     name: 数学
     colour: "%{BKY_MATH_HUE}"
     contents:
-      # - { kind: block, type: number }
-      - kind: block
-        type: number_block
-        inputs:
-          BODY: &shadow_multiline
-            shadow:
-              type: text_multiline
-      # - { kind: block, type: calculate }
-      - kind: block
-        type: calculate_block
-        inputs: { BODY: *shadow_multiline }
+      - { kind: block, type: number }
+      - { kind: block, type: calculate }
       - { kind: block, type: choice }
       - { kind: block, type: range }
       - { kind: block, type: range_value }
       - kind: block
         type: format
         inputs:
-          BODY: *shadow_multiline
+          BODY: &shadow_multiline
+            shadow:
+              type: text_multiline
       - kind: block
         type: reduce_calc
         inputs:

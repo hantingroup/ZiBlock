@@ -444,11 +444,6 @@ Generator.forBlock['number'] = (block: Blockly.Block) => {
   return translate(Symbols.Immediate + slotCode(block, 'TEXT'));
 }
 
-Generator.forBlock['number_block'] = (block: Blockly.Block) => {
-  const body = block.getInputTargetBlock('BODY');
-  return translate(Symbols.Immediate + blockToCode(body));
-}
-
 Generator.forBlock['choice'] = (block: Blockly.Block) => {
   const body = block.getInputTargetBlock('BODY');
   return translate(body && joinBlock(body, ' '));
@@ -508,11 +503,6 @@ Generator.forBlock['reduce_calc'] = (block: Blockly.Block) => {
 
 Generator.forBlock['calculate'] = (block: Blockly.Block) => {
   return translate(Symbols.Calculate + slotCode(block, 'TEXT'));
-}
-
-Generator.forBlock['calculate_block'] = (block: Blockly.Block) => {
-  const body = block.getInputTargetBlock('BODY');
-  return translate(Symbols.Calculate + blockToCode(body));
 }
 
 // Controls ===================================================================
