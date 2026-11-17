@@ -1,3 +1,8 @@
+# Text/number fields become Scratch-style value slots when the blocks load:
+# `field_input`, `field_number` and `field_multilinetext` arguments are turned
+# into value inputs with editable literal shadow blocks (see shadow-slots.ts),
+# so a value reporter can be dropped onto any of them.
+
 # Text ========================================================================
 
 - type: text
@@ -107,6 +112,23 @@
     <<: *text
     tooltip: 展开别名表里的别名；也可以直接输入
 
+- type: alias_value
+  message0: 别名 %1
+  args0:
+    - { type: field_alias_name, name: ALIAS }
+  output: "String"
+  style: text_blocks
+  tooltip: 展开别名表里的别名；可作为值插入其它空槽
+
+- type: join
+  message0: 拼接 %1 %2
+  args0:
+    - { type: field_input, name: A }
+    - { type: field_input, name: B }
+  output: "String"
+  style: text_blocks
+  tooltip: 把两段文本接在一起，左边在前；可以嵌套拼接更多段
+
 - type: lexicon
   message0: "词典 %1 输出 %2"
   args0:
@@ -119,6 +141,20 @@
     <<: *text
     mutator: lexicon_mutator
     extensions: [lexicon_block]
+
+- type: lexicon_value
+  message0: "词典 %1 输出 %2"
+  args0:
+    - { type: field_lexicon_name, name: NAME }
+    - { type: field_lexicon_field, name: FIELD }
+  message1: "查询 %1"
+  args1:
+    - { type: field_label, name: SUMMARY, text: "无" }
+  output: "String"
+  style: text_blocks
+  mutator: lexicon_mutator
+  extensions: [lexicon_block]
+  tooltip: 词库查询结果；可作为值插入其它空槽
 
 # Lexicon query blocks =======================================================
 # Conditions output Cond:<kind>; lexicon_group binds one to a schema and
@@ -262,11 +298,11 @@
 
 - type: range
   message0: 随机数 %1 - %2
-  args0:
+  args0: &range_bounds
     - { type: field_input, name: LEFT, text: "1" }
     - { type: field_input, name: RIGHT, text: "9" }
   message1: 格式 %1 字形 %2
-  args1:
+  args1: &range_format
     - { type: field_input, name: FSPEC }
     - type: field_dropdown
       name: FUSR
@@ -281,7 +317,7 @@
         - [罗马 Unicode RO, RO]
         - [字符 u, u]
   message2: 分布 %1 读名 %2 写名 %3
-  args2:
+  args2: &range_extra
     - type: field_dropdown
       name: DIST
       options:
@@ -301,7 +337,7 @@
     - { type: field_input, name: RNAME }
     - { type: field_input, name: CNAME }
   message3: 多选分隔 %1 数量 %2
-  args3:
+  args3: &range_count
     - type: field_dropdown
       name: CSEP
       options:
@@ -313,6 +349,19 @@
   <<:
     <<: *math_blocks
     tooltip: 在左右边界之间取随机数；输出会贴合两端边界的字形与格式
+
+- type: range_value
+  message0: 随机数 %1 - %2
+  args0: *range_bounds
+  message1: 格式 %1 字形 %2
+  args1: *range_format
+  message2: 分布 %1 读名 %2 写名 %3
+  args2: *range_extra
+  message3: 多选分隔 %1 数量 %2
+  args3: *range_count
+  output: "String"
+  style: math_blocks
+  tooltip: 随机数值；可作为值插入其它空槽
 
 - type: format
   message0: 格式化 %1
@@ -425,6 +474,15 @@
     tooltip: "%{BKY_VARIABLES_GET_TOOLTIP}"
     helpUrl: "%{BKY_VARIABLES_GET_HELPURL}"
 
+- type: variables_get_value
+  message0: "%1"
+  args0: [*variable_var]
+  output: "String"
+  style: variable_blocks
+  extensions: [contextMenu_variableSetterGetter]
+  tooltip: 变量值；可作为值插入其它空槽
+  helpUrl: "%{BKY_VARIABLES_GET_HELPURL}"
+
 - type: variables_set
   message0: 设置 %1
   args0: [*variable_var]
@@ -462,6 +520,13 @@
     <<: *variable_blocks
     style: variable_dynamic_blocks
 
+- type: variables_get_linger_value
+  message0: 导入 %1
+  args0: [*input_scope]
+  output: "String"
+  style: variable_dynamic_blocks
+  tooltip: 导入的变量值；可作为值插入其它空槽
+
 - type: variables_set_linger
   message0: 导出 %1 到 %2
   args0: [*variable_var, *input_scope]
@@ -490,6 +555,15 @@
     <<: *statements
     style: variable_blocks
     tooltip: 读取内部值；作用域留空时按翻译器顺序查找
+
+- type: inner_value_get_value
+  message0: 读取内部值 %1 名 %2
+  args0:
+    - { type: field_input, name: FIELD }
+    - { type: field_input, name: NAME }
+  output: "String"
+  style: variable_blocks
+  tooltip: 读取内部值；可作为值插入其它空槽
 
 # Settings ====================================================================
 

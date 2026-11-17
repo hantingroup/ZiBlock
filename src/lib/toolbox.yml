@@ -9,8 +9,8 @@ contents:
       # - { kind: block, type: text }
       - { kind: block, type: text_multiline }
       # - { kind: block, type: translate }
-      - { kind: block, type: translate_multiline }
-      - { kind: block, type: translate_block }
+      # - { kind: block, type: translate_multiline }
+      # - { kind: block, type: translate_block }
       - kind: block
         type: slice
         inputs:
@@ -30,7 +30,10 @@ contents:
             shadow:
               type: text_multiline
       - { kind: block, type: alias }
+      - { kind: block, type: alias_value }
+      - { kind: block, type: join }
       - { kind: block, type: lexicon }
+      - { kind: block, type: lexicon_value }
 
   # Math ======================================================================
   - kind: category
@@ -50,6 +53,7 @@ contents:
         inputs: { BODY: *shadow_multiline }
       - { kind: block, type: choice }
       - { kind: block, type: range }
+      - { kind: block, type: range_value }
       - kind: block
         type: format
         inputs:
@@ -73,15 +77,18 @@ contents:
     colour: "%{BKY_VARIABLES_HUE}"
     contents:
       - { kind: block, type: variables_get }
+      - { kind: block, type: variables_get_value }
       - { kind: block, type: variables_set }
       - { kind: block, type: variables_set_block }
       - { kind: block, type: variables_get_linger }
+      - { kind: block, type: variables_get_linger_value }
       - { kind: block, type: variables_set_linger }
       - kind: block
         type: inner_value_set
         inputs:
           BODY: *shadow_multiline
       - { kind: block, type: inner_value_get }
+      - { kind: block, type: inner_value_get_value }
 
   # Settings ==================================================================
   - kind: category

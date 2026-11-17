@@ -1,6 +1,7 @@
 <script module>
   import ".";
   import * as Blockly from "blockly";
+  import { migrateWorkspaceState } from "./shadow-slots";
 
   // The default (15px) is chunky next to the grid; keep scrolling usable but
   // visually lighter. Must be set before Blockly.inject creates scrollbars.
@@ -37,7 +38,9 @@
     try {
       const saved = storage.getItem(STORAGE_KEY);
       if (saved) {
-        Blockly.serialization.workspaces.load(JSON.parse(saved), workspace);
+        const state = JSON.parse(saved);
+        migrateWorkspaceState(state);
+        Blockly.serialization.workspaces.load(state, workspace);
       }
     } catch (err) {
       console.warn("Failed to restore Blockly workspace", err);

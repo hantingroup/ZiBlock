@@ -4,7 +4,14 @@ import { registerFieldMultilineInput } from "@blockly/field-multilineinput";
 import "./lexicon-ui";
 import "./lexicon-mutator";
 import blockArray from "./blocks.yml";
+import {
+  defineLiteralBlocks,
+  prepareShadowSlots,
+  registerShadowSlotExtension,
+} from "./shadow-slots";
 
 Blockly.setLocale(zhHans as any);
-Blockly.defineBlocksWithJsonArray(blockArray);
 registerFieldMultilineInput();
+defineLiteralBlocks();
+registerShadowSlotExtension();
+Blockly.defineBlocksWithJsonArray(prepareShadowSlots(blockArray));
