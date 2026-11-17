@@ -11,14 +11,25 @@ contents:
       # - { kind: block, type: translate }
       - { kind: block, type: translate_multiline }
       - { kind: block, type: translate_block }
-
-  # Lexicon ===================================================================
-  # Query condition blocks live in the lexicon block's gear (see
-  # lexicon-mutator.ts), not in the toolbox.
-  - kind: category
-    name: 词库
-    colour: "%{BKY_TEXTS_HUE}"
-    contents:
+      - kind: block
+        type: slice
+        inputs:
+          BODY:
+            shadow:
+              type: text_multiline
+      - kind: block
+        type: font
+        inputs:
+          BODY:
+            shadow:
+              type: text_multiline
+      - kind: block
+        type: filter
+        inputs:
+          BODY:
+            shadow:
+              type: text_multiline
+      - { kind: block, type: alias }
       - { kind: block, type: lexicon }
 
   # Math ======================================================================
@@ -38,6 +49,15 @@ contents:
         type: calculate_block
         inputs: { BODY: *shadow_multiline }
       - { kind: block, type: choice }
+      - { kind: block, type: range }
+      - kind: block
+        type: format
+        inputs:
+          BODY: *shadow_multiline
+      - kind: block
+        type: reduce_calc
+        inputs:
+          BODY: *shadow_multiline
 
   # Controls ==================================================================
   - kind: category
@@ -57,3 +77,17 @@ contents:
       - { kind: block, type: variables_set_block }
       - { kind: block, type: variables_get_linger }
       - { kind: block, type: variables_set_linger }
+      - kind: block
+        type: inner_value_set
+        inputs:
+          BODY: *shadow_multiline
+      - { kind: block, type: inner_value_get }
+
+  # Settings ==================================================================
+  - kind: category
+    name: 设置
+    colour: "%{BKY_TEXTS_HUE}"
+    contents:
+      - { kind: block, type: config }
+      - { kind: block, type: reset }
+      - { kind: block, type: nocensor }

@@ -45,6 +45,68 @@
       name: BODY
   <<: *text_translate
 
+- type: slice
+  message0: 切片 %1
+  args0: [*statement_body]
+  message1: 从 %1 到 %2 步长 %3
+  args1:
+    - { type: field_input, name: START, text: "0" }
+    - { type: field_input, name: STOP }
+    - { type: field_input, name: STEP }
+  <<:
+    <<: *text
+    tooltip: 按 Python 切片语义从目标文本中切出一段
+
+- type: font
+  message0: 字体 %1
+  args0: [*statement_body]
+  message1: 字体 %1 字符集 %2
+  args1:
+    - { type: field_font_name, name: FONT, text: 粗体 }
+    - { type: field_input, name: CHARSET }
+  message2: 写名 %1
+  args2:
+    - { type: field_input, name: CNAME }
+  <<:
+    <<: *text
+    tooltip: 把目标文本逐字符替换成指定字体；字符集为空时替换全部字符
+
+- type: filter
+  message0: 滤镜 %1
+  args0: [*statement_body]
+  message1: 滤镜 %1
+  args1:
+    - type: field_dropdown
+      name: OP
+      options:
+        - [小写 lower, lower]
+        - [大写 upper, upper]
+        - [标题 title, title]
+        - [首字母大写 capitalize, capitalize]
+        - [casefold, casefold]
+        - [交换大小写 swapcase, swapcase]
+        - [去首尾空白 strip, strip]
+        - [去尾部空白 rstrip, rstrip]
+        - [去首部空白 lstrip, lstrip]
+        - [展开制表符 expandtabs, expandtabs]
+        - [麻将 mahjong, mahjong]
+        - [摩斯 morse, morse]
+        - [乱序 shuffle, shuffle]
+  message2: 写名 %1
+  args2:
+    - { type: field_input, name: CNAME }
+  <<:
+    <<: *text
+    tooltip: 对目标文本应用字符串滤镜
+
+- type: alias
+  message0: 别名 %1
+  args0:
+    - { type: field_alias_name, name: ALIAS }
+  <<:
+    <<: *text
+    tooltip: 展开别名表里的别名；也可以直接输入
+
 - type: lexicon
   message0: "词典 %1 输出 %2"
   args0:
@@ -198,6 +260,115 @@
   args1: [*statement_body]
   <<: *math_blocks
 
+- type: range
+  message0: 随机数 %1 - %2
+  args0:
+    - { type: field_input, name: LEFT, text: "1" }
+    - { type: field_input, name: RIGHT, text: "9" }
+  message1: 格式 %1 字形 %2
+  args1:
+    - { type: field_input, name: FSPEC }
+    - type: field_dropdown
+      name: FUSR
+      options:
+        - [自动, ""]
+        - [十进制 d, d]
+        - [十六进制 x, x]
+        - [十六进制 X, X]
+        - [中文 cn, cn]
+        - [中文大写 CN, CN]
+        - [罗马 ro, ro]
+        - [罗马 Unicode RO, RO]
+        - [字符 u, u]
+  message2: 分布 %1 读名 %2 写名 %3
+  args2:
+    - type: field_dropdown
+      name: DIST
+      options:
+        - [无, ""]
+        - [正态, n]
+        - [学生 t, t]
+        - [卡方, x]
+        - [F 分布, f]
+        - [指数, e]
+        - [柯西, c]
+        - [威布尔, w]
+        - [伽马, g]
+        - [贝塔, β]
+        - [对数正态, log]
+        - [逻辑, logistic]
+        - [拉普拉斯, l]
+    - { type: field_input, name: RNAME }
+    - { type: field_input, name: CNAME }
+  message3: 多选分隔 %1 数量 %2
+  args3:
+    - type: field_dropdown
+      name: CSEP
+      options:
+        - [无, ""]
+        - [逗号 ，, ，]
+        - [顿号 、, 、]
+        - [空格, " "]
+    - { type: field_input, name: COUNT }
+  <<:
+    <<: *math_blocks
+    tooltip: 在左右边界之间取随机数；输出会贴合两端边界的字形与格式
+
+- type: format
+  message0: 格式化 %1
+  args0: [*statement_body]
+  message1: 格式 %1 字形 %2
+  args1:
+    - { type: field_input, name: FSPEC, text: ".2f" }
+    - type: field_dropdown
+      name: FUSR
+      options:
+        - [十进制 d, d]
+        - [无, ""]
+        - [十六进制 x, x]
+        - [十六进制 X, X]
+        - [中文 cn, cn]
+        - [中文大写 CN, CN]
+        - [罗马 ro, ro]
+        - [罗马 Unicode RO, RO]
+        - [字符 u, u]
+  message2: 写名 %1
+  args2:
+    - { type: field_input, name: CNAME }
+  <<:
+    <<: *math_blocks
+    tooltip: 把目标值按格式与字形重新渲染（不随机）
+
+- type: reduce_calc
+  message0: "# %1"
+  args0:
+    - type: field_dropdown
+      name: OP
+      options:
+        - ["加 +", "+"]
+        - ["减 -", "-"]
+        - ["乘 *", "*"]
+        - ["除 /", "/"]
+        - ["整除 //", "//"]
+        - ["取余 %", "%"]
+        - ["幂 **", "**"]
+        - ["按位与 &", "&"]
+        - ["按位或 |", "|"]
+        - ["按位异或 ^", "^"]
+  message1: "%1"
+  args1: [*statement_body]
+  message2: 分隔 %1
+  args2:
+    - type: field_dropdown
+      name: SEP
+      options:
+        - [逗号 ，, ，]
+        - [顿号 、, 、]
+        - [空格, " "]
+  <<:
+    <<: *math_blocks
+    tooltip: 把各段按同一个分隔符拆开后从左到右做归约运算
+
 # Controls ====================================================================
 
 - type: controls_repeat
@@ -295,3 +466,79 @@
   message0: 导出 %1 到 %2
   args0: [*variable_var, *input_scope]
   <<: *variable_dynamic_blocks
+
+- type: inner_value_set
+  message0: 写入内部值 %1 名 %2
+  args0:
+    - { type: field_input, name: FIELD, text: Range }
+    - { type: field_input, name: NAME }
+  message1: 值 %1
+  args1: [*statement_body]
+  message2: 输出 %1
+  args2: [*checkbox_echo]
+  <<:
+    <<: *statements
+    style: variable_blocks
+    tooltip: 把值写进内部值表（作用域通常是 Range / Choice / Lex）
+
+- type: inner_value_get
+  message0: 读取内部值 %1 名 %2
+  args0:
+    - { type: field_input, name: FIELD }
+    - { type: field_input, name: NAME }
+  <<:
+    <<: *statements
+    style: variable_blocks
+    tooltip: 读取内部值；作用域留空时按翻译器顺序查找
+
+# Settings ====================================================================
+
+- type: config
+  message0: 配置 %1
+  args0:
+    - type: field_dropdown
+      name: ITEM
+      options:
+        - [允许变量名含下划线 vu, vu]
+        - [禁止变量名含下划线, disable_cache_name_with_underscore]
+        - [出错忽略 eig, eig]
+        - [出错原样 ea, ea]
+        - [出错缩写 eil, eil]
+        - [出错抛错 er, er]
+        - [计算输出上限 512, max_calculate_output_normal]
+        - [计算输出上限 1024 cl, cl]
+        - [计算输出无限 cu, cu]
+        - [关闭 PUA 提示, disable_pua_warning]
+        - [开启 PUA 提示, enable_pua_warning]
+        - [关闭复制提示, disable_repeat_warning]
+        - [开启复制提示, enable_repeat_warning]
+        - [关闭词库提示, disable_lex_warning]
+        - [开启词库提示, enable_lex_warning]
+        - [大数走沙盒 cb, cb]
+        - [关闭大数沙盒, disable_calc_bignum]
+        - [除零为 inf zinf, zinf]
+        - [除零为 nan znan, znan]
+        - [除零为 0 zzero, zzero]
+        - [除零报错 zerr, zerr]
+  <<:
+    <<: *statements
+    style: text_blocks
+    tooltip: 设置本次填字的配置项，输出为空
+
+- type: nocensor
+  message0: 关闭屏蔽 %1
+  args0:
+    - { type: field_input, name: OTP }
+  <<:
+    <<: *statements
+    style: text_blocks
+    tooltip: 用 6 位验证码关闭本次填字的屏蔽词；不填会提示当前验证码
+
+- type: reset
+  message0: 重置 %1
+  args0:
+    - { type: field_input, name: SEED }
+  <<:
+    <<: *statements
+    style: text_blocks
+    tooltip: 清空缓存与变量并重置随机；种子应放在最前面

@@ -13,6 +13,8 @@
  */
 
 import * as Blockly from "blockly";
+import { ALIAS_ENTRIES, type AliasEntry } from "./aliases";
+import { FONT_NAMES } from "./fonts";
 import {
   conditionsForGroup,
   getCachedLexiconMeta,
@@ -183,6 +185,23 @@ export class FieldGroupName extends FlexibleDropdown {
 
   static override fromJson(options: DropdownJson): FieldGroupName {
     return new FieldGroupName((options as { text?: string }).text ?? "");
+  }
+}
+
+// Font aliases are a fixed 266-name table; the dropdown's search box makes it
+// navigable.
+
+function fontNameOptions(): Blockly.MenuOption[] {
+  return FONT_NAMES.map((name): Blockly.MenuOption => [name, name]);
+}
+
+export class FieldFontName extends FlexibleDropdown {
+  constructor(value = "粗体") {
+    super(fontNameOptions, value);
+  }
+
+  static override fromJson(options: DropdownJson): FieldFontName {
+    return new FieldFontName((options as { text?: string }).text ?? "粗体");
   }
 }
 
@@ -373,6 +392,129 @@ export class FieldEnumValue extends Blockly.FieldTextInput {
     if (block instanceof Blockly.BlockSvg)
       Blockly.DropDownDiv.setColour(block.getColour(), block.getColourTertiary());
     Blockly.DropDownDiv.showPositionedByField(this);
+  }
+}
+
+// Alias names ================================================================
+//
+// Searchable picker over the bundled alias table (`src/lib/aliases.ts`, copied
+// from the public `reserved/alias.tsv`). It is a text field first, so an alias
+// missing from the table can still be typed; 自定义… switches to the editor.
+
+function aliasMenuItem(entry: AliasEntry, onClick: () => void): HTMLButtonElement {
+  const button = enumMenuItem("", onClick);
+  button.replaceChildren();
+  const key = document.createElement("span");
+  key.textContent = entry.key;
+  button.append(key);
+  if (entry.value) {
+    const value = document.createElement("span");
+    const hint =
+      entry.value.length > 60 ? `${entry.value.slice(0, 60)}…` : entry.value;
+    value.textContent = ` → ${hint}`;
+    value.style.cssText = "opacity:.55;margin-left:6px;";
+    button.append(value);
+  }
+  button.title = `${entry.key} → ${entry.value}`;
+  return button;
+}
+
+export class FieldAliasName extends Blockly.FieldTextInput {
+  static override fromJson(options: Blockly.FieldConfig): FieldAliasName {
+    return new FieldAliasName(
+      (options as { text?: string }).text ?? ALIAS_ENTRIES[0]?.key ?? "",
+    );
+  }
+
+  private openTextEditor(
+    e?: Event,
+    quietInput?: boolean,
+    manageEphemeralFocus?: boolean,
+  ) {
+    super.showEditor_(e, quietInput, manageEphemeralFocus);
+    if (this.htmlInput_) this.htmlInput_.placeholder = "别名（可直接输入）";
+  }
+
+  protected override showEditor_(
+    e?: Event,
+    quietInput?: boolean,
+    manageEphemeralFocus?: boolean,
+  ): void {
+    if (typeof document === "undefined") return;
+    const entries = ALIAS_ENTRIES;
+    if (entries.length === 0) {
+      this.openTextEditor(e, quietInput, manageEphemeralFocus);
+      return;
+    }
+
+    const content = Blockly.DropDownDiv.getContentDiv();
+    content.replaceChildren();
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText =
+      "display:flex;flex-direction:column;min-width:200px;max-height:340px;";
+    const search = document.createElement("input");
+    search.type = "search";
+    search.className = "ziblock-dropdown-search";
+    search.placeholder = "搜索别名…";
+    search.setAttribute("aria-label", "搜索别名");
+    search.style.cssText =
+      "box-sizing:border-box;width:calc(100% - 8px);margin:4px;" +
+      "padding:4px 6px;font:inherit;border:1px solid #bbb;border-radius:2px;";
+    const list = document.createElement("div");
+    list.style.cssText = "min-height:0;overflow-y:auto;";
+    wrapper.append(search, list);
+    content.append(wrapper);
+
+    const choose = (value: string) => {
+      Blockly.DropDownDiv.hide();
+      this.setValue(value);
+    };
+
+    const render = (needle: string) => {
+      list.replaceChildren();
+      const query = needle.trim().toLocaleLowerCase();
+      const matches = entries.filter(
+        (entry) =>
+          !query ||
+          entry.key.toLocaleLowerCase().includes(query) ||
+          entry.value.toLocaleLowerCase().includes(query),
+      );
+      for (const entry of matches)
+        list.append(aliasMenuItem(entry, () => choose(entry.key)));
+      if (matches.length === 0) {
+        const empty = document.createElement("div");
+        empty.textContent = "没有匹配的别名";
+        empty.style.cssText = "padding:6px 12px;opacity:.6;";
+        list.append(empty);
+      }
+      list.append(
+        enumMenuItem("自定义…", () => {
+          Blockly.DropDownDiv.hideWithoutAnimation();
+          this.openTextEditor();
+        }),
+      );
+    };
+
+    search.addEventListener("input", () => render(search.value));
+    search.addEventListener("keydown", (event) => {
+      // Let Escape reach Blockly's menu handler so the dropdown can close.
+      if (event.key === "Escape") return;
+      if (event.key === "Enter") {
+        const first = list.querySelector<HTMLButtonElement>("button");
+        if (first) {
+          event.preventDefault();
+          first.click();
+        }
+      }
+      event.stopPropagation();
+    });
+    render("");
+
+    const block = this.getSourceBlock();
+    if (block instanceof Blockly.BlockSvg)
+      Blockly.DropDownDiv.setColour(block.getColour(), block.getColourTertiary());
+    Blockly.DropDownDiv.showPositionedByField(this);
+    search.focus();
   }
 }
 
@@ -757,7 +899,9 @@ Blockly.Extensions.register("lexicon_not_block", function (this: Blockly.Block) 
 Blockly.fieldRegistry.register("field_lexicon_name", FieldLexiconName);
 Blockly.fieldRegistry.register("field_lexicon_field", FieldLexiconField);
 Blockly.fieldRegistry.register("field_group_name", FieldGroupName);
+Blockly.fieldRegistry.register("field_font_name", FieldFontName);
 Blockly.fieldRegistry.register("field_enum_value", FieldEnumValue);
+Blockly.fieldRegistry.register("field_alias_name", FieldAliasName);
 
 Blockly.Extensions.register("lexicon_block", function (this: Blockly.Block) {
   const nameField = this.getField("NAME");

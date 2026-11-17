@@ -81,6 +81,16 @@ const extractCode = (code: string | [string, number]) => {
   return Array.isArray(code) ? code[0] : code;
 }
 
+/** Trimmed value of a text/dropdown field. */
+function fieldText(block: Blockly.Block, name: string): string {
+  return String(block.getFieldValue(name) ?? '').trim()
+}
+
+/** Code of a statement input, including its chained siblings. */
+function statementCode(block: Blockly.Block, input: string): string {
+  return blockToCode(block.getInputTargetBlock(input))
+}
+
 function joinBlock(
   block: Blockly.Block | null,
   sep: string | null = null,
@@ -119,6 +129,47 @@ Generator.forBlock['translate'] = (block: Blockly.Block) => {
 
 Generator.forBlock['translate_block'] = (block: Blockly.Block) => {
   return translate(escape(blockToCode(block.getInputTargetBlock('BODY'))));
+}
+
+Generator.forBlock['slice'] = (block: Blockly.Block) => {
+  const body = statementCode(block, 'BODY')
+  const start = fieldText(block, 'START')
+  const stop = fieldText(block, 'STOP')
+  const step = fieldText(block, 'STEP')
+  if (!body) throw new Error('切片需要一个目标')
+  if (!start && !stop && !step) throw new Error('切片至少需要一个索引')
+  let code = `${body}:${start}`
+  if (stop || step) code += `:${stop}`
+  if (step) code += `:${step}`
+  return translate(code)
+}
+
+Generator.forBlock['font'] = (block: Blockly.Block) => {
+  const body = statementCode(block, 'BODY')
+  const font = fieldText(block, 'FONT')
+  const charset = String(block.getFieldValue('CHARSET') ?? '')
+  const cname = fieldText(block, 'CNAME')
+  if (!body) throw new Error('字体转换需要一个目标')
+  if (!font) throw new Error('请选择字体')
+  let code = `${body}:${font}`
+  if (charset) code += `@${escape(charset)}`
+  if (cname) code += `>${cname}`
+  return translate(code)
+}
+
+Generator.forBlock['filter'] = (block: Blockly.Block) => {
+  const body = statementCode(block, 'BODY')
+  const op = fieldText(block, 'OP')
+  const cname = fieldText(block, 'CNAME')
+  if (!body) throw new Error('滤镜需要一个目标')
+  if (!op) throw new Error('请选择滤镜')
+  return translate(`${body}:${op}${cname ? `>${cname}` : ''}`)
+}
+
+Generator.forBlock['alias'] = (block: Blockly.Block) => {
+  const alias = fieldText(block, 'ALIAS')
+  if (!alias) throw new Error('请选择或输入别名')
+  return translate(alias)
 }
 
 // Lexicon ====================================================================
@@ -330,6 +381,52 @@ Generator.forBlock['choice'] = (block: Blockly.Block) => {
   return translate(body && joinBlock(body, ' '));
 }
 
+Generator.forBlock['range'] = (block: Blockly.Block) => {
+  const left = fieldText(block, 'LEFT')
+  const right = fieldText(block, 'RIGHT')
+  if (!left || !right) throw new Error('随机数需要左右边界')
+
+  const fspec = String(block.getFieldValue('FSPEC') ?? '').trim()
+  const fusr = String(block.getFieldValue('FUSR') ?? '')
+  const dist = String(block.getFieldValue('DIST') ?? '')
+  const rname = fieldText(block, 'RNAME')
+  const cname = fieldText(block, 'CNAME')
+  const count = fieldText(block, 'COUNT')
+
+  let code = `${escape(left)}-${escape(right)}`
+  if (fspec) code += `:${fspec}${fusr ? `;${fusr}` : ''}`
+  else if (fusr) code += `:${fusr}`
+  if (dist) code += `@${dist}`
+  if (rname) code += `<${rname}`
+  if (cname) code += `>${cname}`
+  if (count) code += `${block.getFieldValue('CSEP') ?? ''}=${count}`
+  return translate(code)
+}
+
+Generator.forBlock['format'] = (block: Blockly.Block) => {
+  const body = statementCode(block, 'BODY')
+  const fspec = String(block.getFieldValue('FSPEC') ?? '').trim()
+  const fusr = String(block.getFieldValue('FUSR') ?? '')
+  const cname = fieldText(block, 'CNAME')
+  if (!body) throw new Error('格式化需要一个目标')
+  if (!fspec && !fusr) throw new Error('格式化需要格式或字形')
+  let code = `${body}:${fspec}`
+  // The glyph separator is only accepted together with a format spec; with no
+  // spec the glyph follows the colon directly (`[[3:cn]]`).
+  if (fspec && fusr) code += `;${fusr}`
+  else if (fusr) code += fusr
+  if (cname) code += `>${cname}`
+  return translate(code)
+}
+
+Generator.forBlock['reduce_calc'] = (block: Blockly.Block) => {
+  const op = fieldText(block, 'OP')
+  const sep = String(block.getFieldValue('SEP') ?? '') || '，'
+  const body = block.getInputTargetBlock('BODY')
+  if (!body) throw new Error('归约运算需要至少两段')
+  return translate(`#${op} ${joinBlock(body, sep)}`)
+}
+
 Generator.forBlock['calculate'] = (block: Blockly.Block) => {
   const text = block.getFieldValue('BODY');
   return translate(Symbols.Calculate + text);
@@ -380,4 +477,39 @@ Generator.forBlock['variables_set_linger'] = (block: Blockly.Block) => {
   const name = block.getField('VAR')!.getText();
   const scope = block.getFieldValue('SCOPE');
   return translate(name + Symbols.LingerAssign + scope);
+}
+
+Generator.forBlock['inner_value_set'] = (block: Blockly.Block) => {
+  const body = statementCode(block, 'BODY')
+  const field = fieldText(block, 'FIELD')
+  const name = fieldText(block, 'NAME')
+  const echo = block.getFieldValue('ECHO') === 'TRUE'
+  if (!body) throw new Error('写入内部值需要一个值')
+  if (!field) throw new Error('写入内部值需要作用域')
+  if (!name) throw new Error('写入内部值需要一个名字')
+  return translate(`${body}>>${field}:${name}${echo ? '>' : ''}`)
+}
+
+Generator.forBlock['inner_value_get'] = (block: Blockly.Block) => {
+  const field = fieldText(block, 'FIELD')
+  const name = fieldText(block, 'NAME')
+  if (!name) throw new Error('读取内部值需要一个名字')
+  return translate(`<<${field ? `${field}:` : ''}${name}`)
+}
+
+// Settings ===================================================================
+
+Generator.forBlock['config'] = (block: Blockly.Block) => {
+  return translate(`config<${fieldText(block, 'ITEM')}>`)
+}
+
+Generator.forBlock['nocensor'] = (block: Blockly.Block) => {
+  const otp = fieldText(block, 'OTP').toUpperCase()
+  return translate('nocensor' + (otp ? ` ${otp}` : ''))
+}
+
+Generator.forBlock['reset'] = (block: Blockly.Block) => {
+  const seed = fieldText(block, 'SEED')
+  if (seed && !/^[0-9]+$/.test(seed)) throw new Error('重置种子必须是数字')
+  return translate('RST' + (seed ? ` ${seed}` : ''))
 }
