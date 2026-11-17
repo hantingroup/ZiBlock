@@ -438,24 +438,11 @@
       checked: TRUE
   <<:
     - *statements
-    - &controls_repeat
-      <<: # &loop_blocks
+    - <<: # &loop_blocks
         style: loop_blocks
         <<: *statements
       tooltip: "%{BKY_CONTROLS_REPEAT_TOOLTIP}"
       helpUrl: "%{BKY_CONTROLS_REPEAT_HELPURL}"
-
-- type: controls_repeat_block
-  message0: 重复 %1
-  args0:
-    - # &statement_times
-      type: input_statement
-      name: TIMES
-  message1: 次 %1
-  args1: [*statement_body]
-  message2: 懒加载 %1
-  args2: *checkbox_lazy
-  <<: *controls_repeat
 
 # Variables ===================================================================
 

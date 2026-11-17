@@ -69,7 +69,6 @@ contents:
     colour: "%{BKY_LOOPS_HUE}"
     contents:
       - { kind: block, type: controls_repeat }
-      - { kind: block, type: controls_repeat_block }
 
   # Variables =================================================================
   - kind: category
