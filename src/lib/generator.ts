@@ -104,6 +104,11 @@ function slotText(block: Blockly.Block, name: string): string {
   return slotCode(block, name).trim()
 }
 
+/** Optional numeric slots use their 0 default to mean "not filled in". */
+function unsetZero(text: string): string {
+  return text === '0' ? '' : text
+}
+
 /**
  * Text of a value slot for a DSL context. A literal shadow is plain text and
  * is escaped; a reporter is already an expression and is used as-is.
@@ -200,8 +205,8 @@ Generator.forBlock['translate_block'] = (
 Generator.forBlock['slice'] = (block: Blockly.Block): [string, number] => {
   const body = slotCode(block, 'BODY')
   const start = slotText(block, 'START')
-  const stop = slotText(block, 'STOP')
-  const step = slotText(block, 'STEP')
+  const stop = unsetZero(slotText(block, 'STOP'))
+  const step = unsetZero(slotText(block, 'STEP'))
   if (!body) return ['', ORDER_NONE]
   if (!start && !stop && !step) return [body, ORDER_NONE]
   let code = `${body}:${start}`
