@@ -105,28 +105,28 @@ Blockly.common.defineBlocks({
       });
       this.setPreviousStatement(true, "TzText");
       this.setNextStatement(true, "TzText");
-      setupNaryInputs(this);
+      setupNaryInputs(this, 2);
     },
   },
   reduce_calc: {
     init(this: Blockly.Block) {
       this.jsonInit({
-        message0: "# %1 分隔 %2",
+        message0: "# %1 分隔 %2 %3",
         args0: [
           {
             type: "field_dropdown",
             name: "OP",
             options: [
-              ["加 +", "+"],
-              ["减 -", "-"],
-              ["乘 *", "*"],
-              ["除 /", "/"],
-              ["整除 //", "//"],
-              ["取余 %", "%"],
-              ["幂 **", "**"],
-              ["按位与 &", "&"],
-              ["按位或 |", "|"],
-              ["按位异或 ^", "^"],
+              ["加", "+"],
+              ["减", "-"],
+              ["乘", "*"],
+              ["除", "/"],
+              ["整除", "//"],
+              ["取余", "%"],
+              ["幂", "**"],
+              ["按位与", "&"],
+              ["按位或", "|"],
+              ["按位异或", "^"],
             ],
           },
           {
@@ -138,9 +138,8 @@ Blockly.common.defineBlocks({
               ["空格", " "],
             ],
           },
+          { type: "input_value", name: "ITEM0", check: ["String"] }
         ],
-        message1: "%1",
-        args1: [{ type: "input_value", name: "ITEM0", check: ["String"] }],
         output: "String",
         style: "math_blocks",
         inputsInline: false,
