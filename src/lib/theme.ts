@@ -12,7 +12,7 @@ export const AppTheme = Blockly.Theme.defineTheme("ZiBlock", {
   name: "ZiBlock",
   base: Blockly.Themes.Classic,
   blockStyles: {
-    lexicon_blocks: { colourPrimary: "140" },
+    lexicon_blocks: { colourPrimary: "190" },
     setting_blocks: { colourPrimary: "20" },
   },
 });
