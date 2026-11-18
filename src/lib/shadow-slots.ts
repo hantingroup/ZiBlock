@@ -74,7 +74,6 @@ export function shadowState(slot: ShadowSlot): Blockly.serialization.blocks.Stat
   return state;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Definition = Record<string, any>;
 
 /**
@@ -93,7 +92,6 @@ export function prepareShadowSlots(
       const args = definition[`args${index}`];
       if (!Array.isArray(args)) continue;
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       definition[`args${index}`] = args.map((arg: any) => {
         const kind =
           arg && typeof arg === "object" ? SHADOW_KINDS[arg.type] : undefined;

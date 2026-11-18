@@ -9,7 +9,7 @@
 
 import * as Blockly from "blockly";
 
-export const DUAL_CONNECTION = "dual_connection";
+const DUAL_CONNECTION = "dual_connection";
 
 Blockly.Extensions.register(
   DUAL_CONNECTION,

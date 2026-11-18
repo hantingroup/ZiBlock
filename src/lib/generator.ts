@@ -1,7 +1,6 @@
 import * as Blockly from 'blockly';
 import {
   conditionsForGroup,
-  getCachedLexiconMeta,
   lex,
   lexiconQuery,
   LexiconQueryError,
@@ -9,13 +8,13 @@ import {
   segment,
   type Condition,
   type LengthComparison,
-  type LexiconMeta,
-} from './lexicons';
+} from './lexicons/query';
+import { getCachedLexiconMeta, type LexiconMeta } from './lexicons/api';
 import {
   conditionKind,
   findEnclosingLexicon,
   lexiconBlockName,
-} from './lexicon-ui';
+} from './lexicons/context';
 import { isFilterOp } from './transforms';
 
 export const Symbols = {
@@ -48,11 +47,7 @@ const Charsets = {
   SegSep: ";；|/",
   SplitSep: "，、 ",
   Sep: "，、；？,.; \n",
-  // Inline: "\ue104-\ue500",
 }
-
-// RCS_SEP = "\\s\\，\\、\\；\\？\\,\\;"  # 此处不用escape是因为\s会被escape转义失效
-// RCG_ELLIPSIS = "\\.\\.\\.|\\.\\.\\.\\.\\.\\.|\\…|\\…\\…|\\。\\。\\。|\\-|\\~|\\－|\\～|\\—|\\*"
 
 const phrasesToEscape = Object.values(Symbols);
 phrasesToEscape.push('\\', ...Object.values(Charsets)

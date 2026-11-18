@@ -10,13 +10,13 @@
  */
 
 import * as Blockly from "blockly";
+import { groupsForCondition } from "./query";
+import { CONDITION_KINDS } from "./context";
 import {
   getCachedLexiconMeta,
-  groupsForCondition,
   loadLexiconMeta,
-  type Condition,
   type LexiconMeta,
-} from "./lexicons";
+} from "./api";
 
 const QUERY_BLOCK_TYPES = [
   "lexicon_length",
@@ -31,18 +31,7 @@ const QUERY_BLOCK_TYPES = [
   "lexicon_or",
 ] as const;
 
-/** Condition kinds, mirroring the block types in CONDITION_KINDS. */
-const CONDITION_KINDS: Record<string, Condition["kind"] | undefined> = {
-  lexicon_length: "wordLength",
-  lexicon_pinyin: "pinyin",
-  lexicon_pinyin_regex: "pinyinRegex",
-  lexicon_regex: "regex",
-  lexicon_index: "index",
-  lexicon_enum: "enumValue",
-  lexicon_path: "path",
-};
-
-/** Condition block types this lexicon cannot run (670e360 behaviour). */
+/** Condition block types this lexicon cannot run. */
 function unsupportedConditionTypes(meta: LexiconMeta): Set<string> {
   const unsupported = new Set<string>();
   for (const type of QUERY_BLOCK_TYPES) {

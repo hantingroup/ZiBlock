@@ -2,16 +2,13 @@
 	import { resource } from "runed";
 	import toolbox from "./lib/toolbox.yml";
 	import Workspace from "./lib/Workspace.svelte";
-	import { loadLexiconList, LEXICON_API_ORIGIN } from "./lib/lexicons";
+	import { loadLexiconList, LEXICON_API_ORIGIN } from "./lib/lexicons/api";
 
 	let compiledCode = $state("");
 	let compileError = $state("");
 
 	// Primes the shared list cache used by the lexicon name dropdown.
-	const lexicons = resource(
-		() => "list",
-		async () => loadLexiconList(),
-	);
+	resource(() => "list", async () => loadLexiconList());
 
 	const executeResource = resource(
 		() => compiledCode,
@@ -23,7 +20,6 @@
 				body: JSON.stringify({ cmd }),
 			});
 			const data = await res.json();
-			console.log(data);
 			return data.msg;
 		},
 	);

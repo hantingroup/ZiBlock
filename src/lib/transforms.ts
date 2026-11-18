@@ -8,10 +8,10 @@
 
 import * as Blockly from "blockly";
 import { FONT_NAMES } from "./fonts";
-import { FlexibleDropdown } from "./lexicon-ui";
+import { FlexibleDropdown } from "./dropdown-field";
 
 /** String filters accepted by Tianzi's `Filter` translator. */
-export const FILTER_OPS: readonly (readonly [label: string, value: string])[] = [
+const FILTER_OPS: readonly (readonly [label: string, value: string])[] = [
   ["小写 lower", "lower"],
   ["大写 upper", "upper"],
   ["标题 title", "title"],

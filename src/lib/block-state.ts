@@ -44,7 +44,7 @@ function blockCode(block: Blockly.Block): string {
   }
 }
 
-export function updateBlockEffectiveness(block: Blockly.Block): boolean {
+function updateBlockEffectiveness(block: Blockly.Block): boolean {
   if (QUERY_SEPARATORS.has(block.type) || SHADOW_TYPES.has(block.type))
     return false;
 

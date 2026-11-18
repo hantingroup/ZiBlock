@@ -24,7 +24,7 @@ const MACRO_TABLE_URL =
   "https://raw.githubusercontent.com/WFLing-seaer/lexicons/main/reserved/alias.tsv";
 
 /** Minimal table until the remote one arrives. */
-export const DEFAULT_MACRO_ENTRIES: readonly MacroEntry[] = [
+const DEFAULT_MACRO_ENTRIES: readonly MacroEntry[] = [
   { key: "一", value: "[[通规{#0..3500}]]" },
   { key: "二", value: "[[通规{#3500..6500}]]" },
   { key: "三", value: "[[通规{#6500..8105}]]" },
@@ -43,7 +43,7 @@ export function getMacroEntries(): readonly MacroEntry[] {
   return cachedEntries ?? DEFAULT_MACRO_ENTRIES;
 }
 
-/** Where the table load stands; the picker uses it for its placeholder row. */
+/** Where the table load stands; the picker only validates values once ready. */
 export function macroTableStatus(): MacroTableStatus {
   return status;
 }
@@ -93,7 +93,7 @@ async function fetchMacroEntries(): Promise<readonly MacroEntry[]> {
  * Parses the table. The long examples are quoted and span lines, so cells
  * follow the usual doubled-quote CSV rules with a tab delimiter.
  */
-export function parseMacroTable(text: string): MacroEntry[] {
+function parseMacroTable(text: string): MacroEntry[] {
   return parseTsv(text.replace(/^\uFEFF/, ""))
     .map(([key, value]) => ({ key: key ?? "", value: value ?? "" }))
     .filter(({ key }) => key !== "");
