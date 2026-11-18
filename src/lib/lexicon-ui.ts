@@ -893,8 +893,13 @@ defineNaryLogic(
 Blockly.Extensions.register("lexicon_not_block", function (this: Blockly.Block) {
   const syncOutput = () => {
     if (this.isDisposed()) return;
-    const kind = effectiveConditionKind(this.getInputTargetBlock("ITEM"));
-    const next = kind ? CONDITION_TYPE[kind] : "Cond:unknown";
+    const item = this.getInputTargetBlock("ITEM");
+    const kind = effectiveConditionKind(item);
+    const next = kind
+      ? CONDITION_TYPE[kind]
+      : item?.outputConnection?.getCheck()?.includes("TzSegment")
+        ? "TzSegment"
+        : "Cond:unknown";
     const current = this.outputConnection?.getCheck();
     if (!current || current.length !== 1 || current[0] !== next)
       this.setOutput(true, next);
@@ -924,11 +929,20 @@ function patchMutatorFlyout(block: Blockly.Block) {
     const contents = config?.toolbox?.contents;
     if (!meta || !Array.isArray(contents)) return config;
     const unsupported = unsupportedConditionTypes(meta);
-    config.toolbox.contents = contents.filter(
-      (item: any) =>
-        String(item?.kind ?? "").toLowerCase() !== "block" ||
-        !unsupported.has(item.type),
-    );
+    const mode =
+      (block as { queryMode?: string }).queryMode === "blocks"
+        ? "blocks"
+        : "fields";
+    config.toolbox.contents = contents.filter((item: any) => {
+      if (String(item?.kind ?? "").toLowerCase() !== "block") return true;
+      if (unsupported.has(item.type)) return false;
+      if (
+        mode !== "blocks" &&
+        (item.type === "lexicon_group" || item.type === "lexicon_not")
+      )
+        return false;
+      return true;
+    });
     return config;
   };
 }

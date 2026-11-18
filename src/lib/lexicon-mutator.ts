@@ -9,7 +9,9 @@
  *
  * The branches are stored as serialized condition states in the lexicon
  * block's extra state, so they survive save/load and can be regenerated
- * outside the bubble.
+ * outside the bubble. The root's 字段/积木 dropdown switches between per-slot
+ * 组/非 fields and the separate 组/非 wrapper blocks, converting the current
+ * query in place.
  */
 
 import * as Blockly from "blockly";
@@ -23,6 +25,7 @@ import {
   conditionKindLabel,
   effectiveConditionKind,
   FieldGroupName,
+  FlexibleDropdown,
   lexiconBlockName,
   refreshLexiconChildren,
   syncSpareInputs,
@@ -43,9 +46,17 @@ const SUMMARY_LIMIT = 20;
 /** Conditions (or a grouped condition) make up one branch segment. */
 const BRANCH_CHECKS = [...Object.values(CONDITION_TYPE), "TzSegment"];
 
-/** Blocks offered by the gear bubble's flyout. */
+/** The two ways to express 组/非: per-slot fields or separate blocks. */
+export type QueryMode = "fields" | "blocks";
+
+const MIDDLEWARE_BLOCK_TYPES = ["lexicon_group", "lexicon_not"];
+
+/** Blocks offered by the gear bubble's flyout. The mode filter removes 组/非
+ * in fields mode. */
 export const QUERY_BLOCK_TYPES = [
   BRANCH_TYPE,
+  "lexicon_group",
+  "lexicon_not",
   "lexicon_length",
   "lexicon_pinyin",
   "lexicon_regex",
@@ -54,13 +65,48 @@ export const QUERY_BLOCK_TYPES = [
   "lexicon_path",
 ];
 
+type DropdownJson = Parameters<typeof Blockly.FieldDropdown.fromJson>[0];
+
+/** Field/block switch shown on the query root's header. */
+export class FieldQueryMode extends FlexibleDropdown {
+  constructor(value: QueryMode = "fields") {
+    super(
+      () => [
+        ["字段", "fields"],
+        ["积木", "blocks"],
+      ],
+      value,
+    );
+  }
+
+  static override fromJson(options: DropdownJson): FieldQueryMode {
+    return new FieldQueryMode(
+      ((options as { text?: string }).text as QueryMode) ?? "fields",
+    );
+  }
+}
+
+Blockly.fieldRegistry.register("field_query_mode", FieldQueryMode);
+
+/** Mode stored on the root's MODE field (branches fall back to their root). */
+function queryModeOf(block: Blockly.Block): QueryMode {
+  const top = block.getTopStackBlock();
+  if (top.type !== ROOT_TYPE) return "fields";
+  return top.getFieldValue("MODE") === "blocks" ? "blocks" : "fields";
+}
+
 type BlockState = Blockly.serialization.blocks.State;
 
 type LexiconBlock = Blockly.Block & {
   queryBranches?: QueryBranchState[];
+  queryMode?: QueryMode;
 };
 
-type RootBlock = Blockly.Block & { lexiconName?: string };
+type RootBlock = Blockly.Block & {
+  lexiconName?: string;
+  lexiconBlock?: LexiconBlock;
+  suppressModeSwitch?: boolean;
+};
 
 function summarizeDsl(dsl: string): string {
   if (!dsl) return "无";
@@ -97,31 +143,6 @@ function summarizeBranches(block: LexiconBlock): string {
   }
 }
 
-/** Blocks currently connected to one branch's slots, in order. */
-function branchItems(
-  block: Blockly.Block,
-): { block: Blockly.Block; not: boolean; group?: string }[] {
-  const items: {
-    block: Blockly.Block;
-    not: boolean;
-    group?: string;
-  }[] = [];
-  for (let index = 0; block.getInput(`${INPUT_PREFIX}${index}`); index++) {
-    const item = block.getInputTargetBlock(`${INPUT_PREFIX}${index}`);
-    if (item)
-      items.push({
-        block: item,
-        not: isNot(block, index),
-        group: String(block.getFieldValue(`GROUP${index}`) ?? "") || undefined,
-      });
-  }
-  return items;
-}
-
-function isNot(block: Blockly.Block, index: number): boolean {
-  return block.getFieldValue(`NOT${index}`) === "TRUE";
-}
-
 /** The branch chain starting at the root, top to bottom. */
 function branchChain(root: Blockly.Block): Blockly.Block[] {
   const blocks: Blockly.Block[] = [];
@@ -133,7 +154,7 @@ function branchChain(root: Blockly.Block): Blockly.Block[] {
 /** Rebuilds the flyout without conditions the lexicon cannot run. */
 let updatingFlyout = false;
 
-function updateFlyoutAvailability(root: Blockly.Block) {
+function updateFlyoutAvailability(root: Blockly.Block, force = false) {
   if (updatingFlyout) return;
   const workspace = root.workspace;
   if (!(workspace instanceof Blockly.WorkspaceSvg)) return;
@@ -142,14 +163,30 @@ function updateFlyoutAvailability(root: Blockly.Block) {
   if (!meta) return;
 
   const unsupported = unsupportedConditionTypes(meta);
+  const mode = queryModeOf(root);
+  const types = QUERY_BLOCK_TYPES.filter(
+    (type) =>
+      !unsupported.has(type) &&
+      (mode === "blocks" || !MIDDLEWARE_BLOCK_TYPES.includes(type)),
+  );
   const flyout = workspace.getFlyout();
   if (!flyout) return;
   const contents: any[] = (flyout as any).getContents?.() ?? [];
+  const present = new Set(
+    contents
+      .map((item) => item.getElement?.()?.type)
+      .filter((type): type is string => !!type),
+  );
   const blocked = contents.some((item) => {
     const type = item.getElement?.()?.type;
-    return !!type && unsupported.has(type);
+    return !!type && !types.includes(type);
   });
-  if (!blocked) return;
+  const missing =
+    mode === "blocks" &&
+    MIDDLEWARE_BLOCK_TYPES.some(
+      (type) => types.includes(type) && !present.has(type),
+    );
+  if (!force && !blocked && !missing) return;
 
   updatingFlyout = true;
   try {
@@ -157,9 +194,7 @@ function updateFlyoutAvailability(root: Blockly.Block) {
     // from scratch, so removed items do not leave gaps.
     flyout.show({
       kind: "flyoutToolbox",
-      contents: QUERY_BLOCK_TYPES.filter(
-        (type) => !unsupported.has(type),
-      ).map((type) => ({ kind: "block", type })),
+      contents: types.map((type) => ({ kind: "block", type })),
     } as any);
   } finally {
     updatingFlyout = false;
@@ -203,6 +238,15 @@ function validateBranch(block: Blockly.Block) {
   const name = branchLexiconName(block);
   const meta = name ? getCachedLexiconMeta(name) : undefined;
   if (name && !meta) void loadLexiconMeta(name).catch(() => {});
+
+  // In block mode the 组/非 wrapper blocks validate themselves; the branch
+  // slots just need to accept conditions and groups.
+  if (queryModeOf(block) === "blocks") {
+    for (let index = 0; block.getInput(`${INPUT_PREFIX}${index}`); index++)
+      block.getInput(`${INPUT_PREFIX}${index}`)?.setCheck(BRANCH_CHECKS);
+    block.setWarningText(null);
+    return;
+  }
 
   const warnings: string[] = [];
   for (let index = 0; block.getInput(`${INPUT_PREFIX}${index}`); index++) {
@@ -254,10 +298,12 @@ function setupBranchInput(input: Blockly.Input, index: number) {
     input.insertFieldAt(0, new Blockly.FieldLabel("组"), `GROUP_LABEL${index}`);
 }
 
-/** Hide 非/组 on empty slots; they only mean something when connected. */
+/** Hide 非/组 on empty slots or in block mode. */
 function syncSlotVisibility(block: Blockly.Block) {
+  const showFields = queryModeOf(block) !== "blocks";
   for (let index = 0; block.getInput(`${INPUT_PREFIX}${index}`); index++) {
-    const visible = !!block.getInputTargetBlock(`${INPUT_PREFIX}${index}`);
+    const visible =
+      showFields && !!block.getInputTargetBlock(`${INPUT_PREFIX}${index}`);
     for (const name of [
       `NOT${index}`,
       `NOT_LABEL${index}`,
@@ -270,17 +316,153 @@ function syncSlotVisibility(block: Blockly.Block) {
   }
 }
 
+/** Wrap an inner condition in 非/组 blocks for block mode. */
+function wrapInnerBlock(
+  inner: Blockly.Block,
+  not: boolean,
+  group: string | undefined,
+  workspace: Blockly.Workspace,
+): Blockly.Block {
+  let top = inner;
+  const wrappers: Blockly.Block[] = [];
+  try {
+    // 非 stays outermost: 非[组[条件]].
+    if (group) {
+      const wrapper = workspace.newBlock("lexicon_group");
+      if (wrapper instanceof Blockly.BlockSvg) wrapper.initSvg();
+      wrapper.setFieldValue(group, "GROUP");
+      wrapper.getInput("ITEM")?.connection?.connect(inner.outputConnection!);
+      wrappers.push(wrapper);
+      top = wrapper;
+    }
+    if (not) {
+      const wrapper = workspace.newBlock("lexicon_not");
+      if (wrapper instanceof Blockly.BlockSvg) wrapper.initSvg();
+      if (group) wrapper.setOutput(true, "TzSegment");
+      else {
+        const kind = effectiveConditionKind(inner);
+        if (kind) wrapper.setOutput(true, CONDITION_TYPE[kind]);
+      }
+      wrapper.getInput("ITEM")?.connection?.connect(top.outputConnection!);
+      wrappers.push(wrapper);
+      top = wrapper;
+    }
+    return top;
+  } catch (error) {
+    for (const wrapper of wrappers.reverse()) {
+      wrapper.getInput("ITEM")?.connection?.disconnect();
+      wrapper.dispose(false);
+    }
+    throw error;
+  }
+}
+
+/** Read 组/非 from the wrapper blocks used in block mode. */
+function readSlotItem(item: Blockly.Block): {
+  inner: Blockly.Block;
+  not: boolean;
+  group?: string;
+} {
+  let current = item;
+  let not = false;
+  let group: string | undefined;
+  while (
+    current.type === "lexicon_group" ||
+    current.type === "lexicon_not"
+  ) {
+    if (current.type === "lexicon_group")
+      group = String(current.getFieldValue("GROUP") ?? "") || group;
+    else not = true;
+    const next = current.getInputTargetBlock("ITEM");
+    if (!next) break;
+    current = next;
+  }
+  return { inner: current, not, group };
+}
+
+/** fields -> blocks: wrap the condition in place. */
+function wrapSlotItem(
+  block: Blockly.Block,
+  index: number,
+  workspace: Blockly.Workspace,
+) {
+  const item = block.getInputTargetBlock(`${INPUT_PREFIX}${index}`);
+  if (!item?.outputConnection) return;
+  if (item.type === "lexicon_group" || item.type === "lexicon_not") return;
+  const not = block.getFieldValue(`NOT${index}`) === "TRUE";
+  const group = String(block.getFieldValue(`GROUP${index}`) ?? "") || undefined;
+  if (!not && !group) return;
+  const slot = block.getInput(`${INPUT_PREFIX}${index}`)?.connection;
+  if (!slot) return;
+  slot.disconnect();
+  try {
+    const top = wrapInnerBlock(item, not, group, workspace);
+    slot.connect(top.outputConnection!);
+  } catch {
+    if (!slot.isConnected()) slot.connect(item.outputConnection);
+  }
+}
+
+/** blocks -> fields: unwrap the wrapper blocks in place. */
+function unwrapSlotItem(block: Blockly.Block, index: number) {
+  const outer = block.getInputTargetBlock(`${INPUT_PREFIX}${index}`);
+  if (!outer) return;
+  if (outer.type !== "lexicon_group" && outer.type !== "lexicon_not") return;
+  const slot = block.getInput(`${INPUT_PREFIX}${index}`)?.connection;
+  slot?.disconnect();
+
+  let wrapper: Blockly.Block | null = outer;
+  let not = false;
+  let group = "";
+  while (
+    wrapper &&
+    (wrapper.type === "lexicon_group" || wrapper.type === "lexicon_not")
+  ) {
+    const next = wrapper.getInputTargetBlock("ITEM");
+    if (wrapper.type === "lexicon_group")
+      group = String(wrapper.getFieldValue("GROUP") ?? "");
+    else not = true;
+    wrapper.getInput("ITEM")?.connection?.disconnect();
+    wrapper.dispose(false);
+    wrapper = next;
+  }
+
+  if (wrapper?.outputConnection && slot) slot.connect(wrapper.outputConnection);
+  block.setFieldValue(not ? "TRUE" : "FALSE", `NOT${index}`);
+  block.setFieldValue(group, `GROUP${index}`);
+}
+
+/** Switch the whole bubble between per-slot fields and 组/非 blocks. */
+function switchQueryMode(root: Blockly.Block) {
+  const rootBlock = root as RootBlock;
+  if (rootBlock.suppressModeSwitch) return;
+  const mode: QueryMode =
+    root.getFieldValue("MODE") === "blocks" ? "blocks" : "fields";
+  if (rootBlock.lexiconBlock) rootBlock.lexiconBlock.queryMode = mode;
+
+  for (const block of branchChain(root)) {
+    for (let index = 0; block.getInput(`${INPUT_PREFIX}${index}`); index++) {
+      if (mode === "blocks") wrapSlotItem(block, index, block.workspace);
+      else unwrapSlotItem(block, index);
+    }
+    syncSlotVisibility(block);
+    validateBranch(block);
+  }
+  updateFlyoutAvailability(root, true);
+}
+
 function defineBranchBlock(
   type: string,
   message: string,
   tooltip: string,
   hasPrevious: boolean,
+  hasMode = false,
 ) {
   Blockly.common.defineBlocks({
     [type]: {
       init(this: Blockly.Block) {
-        this.jsonInit({
-          message0: message,
+        const json: any = {
+          message0: hasMode ? `${message} %1` : message,
           message1: "%1",
           args1: [
             {
@@ -293,8 +475,16 @@ function defineBranchBlock(
           tooltip,
           previousStatement: hasPrevious ? null : undefined,
           nextStatement: null,
-        });
+        };
+        if (hasMode)
+          json.args0 = [{ type: "field_query_mode", name: "MODE" }];
+        this.jsonInit(json);
         this.setInputsInline(false);
+        if (hasMode) {
+          const modeField = this.getField("MODE");
+          if (modeField instanceof FieldQueryMode)
+            modeField.setOnChange(() => switchQueryMode(this));
+        }
         const first = this.getInput(`${INPUT_PREFIX}0`);
         if (first) setupBranchInput(first, 0);
         syncSpareInputs(
@@ -330,6 +520,7 @@ defineBranchBlock(
   "查询",
   "同一分支内的槽按「与」组合；每个槽的「非」只否定该槽；下面的「或」分支之间按「或」组合",
   false,
+  true,
 );
 defineBranchBlock(
   BRANCH_TYPE,
@@ -458,7 +649,13 @@ Blockly.Extensions.registerMutator(
       const root = workspace.newBlock(ROOT_TYPE);
       if (root instanceof Blockly.BlockSvg) root.initSvg();
       const name = String(this.getFieldValue("NAME") ?? "");
-      (root as RootBlock).lexiconName = name;
+      const rootBlock = root as RootBlock;
+      rootBlock.lexiconName = name;
+      rootBlock.lexiconBlock = this;
+      const mode: QueryMode = this.queryMode === "blocks" ? "blocks" : "fields";
+      rootBlock.suppressModeSwitch = true;
+      root.setFieldValue(mode, "MODE");
+      rootBlock.suppressModeSwitch = false;
 
       const branches = this.queryBranches?.length
         ? this.queryBranches
@@ -488,8 +685,16 @@ Blockly.Extensions.registerMutator(
               item.state,
               workspace,
             );
-            if (input.connection && tree.outputConnection)
-              input.connection.connect(tree.outputConnection);
+            let top = tree;
+            if (mode === "blocks")
+              top = wrapInnerBlock(
+                tree,
+                !!item.not,
+                item.group || undefined,
+                workspace,
+              );
+            if (input.connection && top.outputConnection)
+              input.connection.connect(top.outputConnection);
           } catch {
             // Skip items that no longer deserialize (or do not fit the slot).
           }
@@ -531,16 +736,36 @@ Blockly.Extensions.registerMutator(
 
     compose(this: LexiconBlock, root: Blockly.Block) {
       const name = String(this.getFieldValue("NAME") ?? "");
+      const mode = queryModeOf(root);
       const branches: QueryBranchState[] = [];
       for (const block of branchChain(root)) {
         const items: QueryBranchItemState[] = [];
-        for (const { block: item, not, group } of branchItems(block)) {
-          const state = Blockly.serialization.blocks.save(item);
+        for (let index = 0; block.getInput(`${INPUT_PREFIX}${index}`); index++) {
+          const item = block.getInputTargetBlock(`${INPUT_PREFIX}${index}`);
+          if (!item) continue;
+
+          let not: boolean;
+          let group: string | undefined;
+          let state: BlockState | null;
+          if (mode === "blocks") {
+            const read = readSlotItem(item);
+            not = read.not;
+            group = read.group;
+            state = Blockly.serialization.blocks.save(read.inner);
+            block.setFieldValue(not ? "TRUE" : "FALSE", `NOT${index}`);
+            block.setFieldValue(group ?? "", `GROUP${index}`);
+          } else {
+            not = block.getFieldValue(`NOT${index}`) === "TRUE";
+            group =
+              String(block.getFieldValue(`GROUP${index}`) ?? "") || undefined;
+            state = Blockly.serialization.blocks.save(item);
+          }
           if (state) items.push({ not: not || undefined, group, state });
         }
         if (items.length) branches.push({ items });
       }
       this.queryBranches = branches;
+      this.queryMode = mode;
 
       let summary = "无";
       if (branches.length) {
@@ -554,9 +779,10 @@ Blockly.Extensions.registerMutator(
     },
 
     saveExtraState(this: LexiconBlock) {
-      return this.queryBranches?.length
-        ? { branches: this.queryBranches }
-        : {};
+      const state: { branches?: QueryBranchState[]; mode?: QueryMode } = {};
+      if (this.queryBranches?.length) state.branches = this.queryBranches;
+      if (this.queryMode === "blocks") state.mode = "blocks";
+      return state;
     },
 
     loadExtraState(
@@ -565,14 +791,17 @@ Blockly.Extensions.registerMutator(
         branches?: StoredBranch[];
         queries?: BlockState[];
         query?: BlockState;
+        mode?: QueryMode;
       },
     ) {
+      this.queryMode = state.mode === "blocks" ? "blocks" : "fields";
       this.queryBranches = loadBranches(state);
       setSummary(this, summarizeBranches(this));
     },
   },
   function (this: LexiconBlock) {
     this.queryBranches = [];
+    this.queryMode = "fields";
     setSummary(this, "无");
   },
   QUERY_BLOCK_TYPES,
