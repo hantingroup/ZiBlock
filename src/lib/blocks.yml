@@ -228,8 +228,7 @@
 - type: number
   message0: "# %1"
   args0:
-    - <<: *input_text
-      value: 0
+    - { type: field_number, name: TEXT, value: 0 }
   <<:
     - <<: &math_blocks
         <<: *statements
@@ -246,13 +245,14 @@
     helpUrl: "%{BKY_MATH_CALCULATE_HELPURL}"
 
 - type: range
-  message0: 随机数 %1 - %2
+  inputsInline: false
+  message0: 随机数 %1 到 %2
   args0: &range_bounds
-    - { type: field_input, name: LEFT, text: "1", external: true }
-    - { type: field_input, name: RIGHT, text: "9", external: true }
+    - { type: field_number, name: LEFT, value: 1 }
+    - { type: field_number, name: RIGHT, value: 9 }
   message1: 格式 %1 字形 %2
   args1: &range_format
-    - { type: field_input, name: FSPEC, external: true }
+    - { type: field_input, name: FSPEC }
     - type: field_dropdown
       name: FUSR
       options:
@@ -283,8 +283,8 @@
         - [对数正态, log]
         - [逻辑, logistic]
         - [拉普拉斯, l]
-    - { type: field_input, name: RNAME, external: true }
-    - { type: field_input, name: CNAME, external: true }
+    - { type: field_input, name: RNAME }
+    - { type: field_input, name: CNAME }
   message3: 多选分隔 %1 数量 %2
   args3: &range_count
     - type: field_dropdown
@@ -294,12 +294,13 @@
         - [逗号 ，, ，]
         - [顿号 、, 、]
         - [空格, " "]
-    - { type: field_input, name: COUNT, external: true }
+    - { type: field_input, name: COUNT }
   <<:
     <<: *math_blocks
     tooltip: 在左右边界之间取随机数；输出会贴合两端边界的字形与格式
 
 - type: range_value
+  inputsInline: false
   message0: 随机数 %1 - %2
   args0: *range_bounds
   message1: 格式 %1 字形 %2
@@ -313,11 +314,12 @@
   tooltip: 随机数值；可作为值插入其它空槽
 
 - type: format
+  inputsInline: false
   message0: 格式化 %1
   args0: [*statement_body]
   message1: 格式 %1 字形 %2
   args1:
-    - { type: field_input, name: FSPEC, text: ".2f", external: true }
+    - { type: field_input, name: FSPEC, text: ".2f" }
     - type: field_dropdown
       name: FUSR
       options:
@@ -332,7 +334,7 @@
         - [字符 u, u]
   message2: 写名 %1
   args2:
-    - { type: field_input, name: CNAME, external: true }
+    - { type: field_input, name: CNAME }
   <<:
     <<: *math_blocks
     tooltip: 把目标值按格式与字形重新渲染（不随机）

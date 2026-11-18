@@ -23,8 +23,8 @@ export interface ShadowSlot {
   input: string;
   /** Shadow block type that supplies the editable literal. */
   shadowType: LiteralType;
-  /** Initial literal text. */
-  text: string;
+  /** Initial literal value; number slots keep a number, not a string. */
+  value: string | number;
 }
 
 /** Field types that become slots, mapped to their shadow block type. */
@@ -38,6 +38,16 @@ const SHADOW_EXTENSION = "ziblock_shadow_slots";
 
 /** Shadow slots per block type, used by the extension and the migrator. */
 export const SHADOW_SLOTS = new Map<string, ShadowSlot[]>();
+
+/** Shadow fields keep their type: number slots hold numbers, the rest text. */
+function literalValue(
+  shadowType: LiteralType,
+  value: unknown,
+): string | number {
+  if (shadowType !== "literal_number") return String(value ?? "");
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Definition = Record<string, any>;
@@ -72,24 +82,13 @@ export function prepareShadowSlots(
           return plain;
         }
 
-        // `external` turns the field into a plain value input with no default
-        // shadow, so its value must come from a connected block.
-        if (arg.external) {
-          const input: Record<string, unknown> = {
-            type: "input_value",
-            name: arg.name,
-          };
-          if (arg.check) input.check = arg.check;
-          return input;
-        }
-
         slots.push({
           input: arg.name,
           shadowType: kind.shadowType,
-          text: String(arg.text ?? arg.value ?? ""),
+          value: literalValue(kind.shadowType, arg.text ?? arg.value),
         });
-        // The literal text now lives in the shadow block; only the connection
-        // check still belongs on the input.
+        // The literal now lives in the shadow block; only the connection check
+        // still belongs on the input.
         const input: Record<string, unknown> = {
           type: "input_value",
           name: arg.name,
@@ -135,7 +134,7 @@ export function defineLiteralBlocks() {
       type: "literal_number",
       message0: "%1",
       args0: [{ type: "field_number", name: "TEXT" }],
-      output: "String",
+      output: "Number",
       style: "math_blocks",
       tooltip: "数字字面量；可以用值积木替换",
     },
@@ -150,7 +149,7 @@ export function registerShadowSlotExtension() {
     for (const slot of slots) {
       this.getInput(slot.input)?.connection?.setShadowState({
         type: slot.shadowType,
-        fields: { TEXT: slot.text },
+        fields: { TEXT: slot.value },
       });
     }
   });
@@ -193,7 +192,7 @@ function migrateBlock(block: unknown): void {
       state.inputs[slot.input] = {
         shadow: {
           type: slot.shadowType,
-          fields: { TEXT: String(value ?? "") },
+          fields: { TEXT: literalValue(slot.shadowType, value) },
         },
       };
     }
