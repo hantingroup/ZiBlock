@@ -352,7 +352,10 @@
       min: 0
       precision: 1
   message1: "%1"
-  args1: [*statement_body]
+  args1:
+    - type: input_statement
+      name: BODY
+      check: "TzText"
   message2: 懒加载 %1
   args2: &checkbox_lazy
     - type: field_checkbox

@@ -271,7 +271,7 @@ function renderCondition(
 // Query expression ===========================================================
 //
 // A query stack is an OR of ANDs: 或者 separators split OR branches, and the
-// lines inside one branch are ANDed. 非 negates the whole inner expression.
+// lines inside one branch are ANDed. 取反 negates the whole inner expression.
 // De Morgan plus DNF distribution turns that into the flat &/| form the
 // fill-in DSL accepts (it has no general grouping parentheses).
 
@@ -593,7 +593,10 @@ Generator.forBlock['controls_repeat'] = (
   block: Blockly.Block,
 ): [string, number] => {
   const times = slotText(block, 'TIMES');
-  const body = slotCode(block, 'BODY');
+  const bodyBlock = block.getInputTargetBlock('BODY');
+  const body = bodyBlock
+    ? extractCode(Generator.blockToCode(bodyBlock))
+    : '';
   const lazy = block.getFieldValue('LAZY');
   if (!times) return ['', ORDER_NONE];
   const symbol = lazy === 'TRUE' ? Symbols.RepeatLazy : Symbols.Repeat;
