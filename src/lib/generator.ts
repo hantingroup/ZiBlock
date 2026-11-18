@@ -464,6 +464,9 @@ Generator.forBlock['lexicon_not'] = (block: Blockly.Block): string =>
 Generator.forBlock['lexicon_pinyin'] = (block: Blockly.Block): string =>
   renderCondition(block, () => lex.pinyin(slotCode(block, 'PATTERN')));
 
+Generator.forBlock['lexicon_pinyin_regex'] = (block: Blockly.Block): string =>
+  renderCondition(block, () => lex.pinyinRegex(slotCode(block, 'PATTERN')));
+
 Generator.forBlock['lexicon_length'] = (block: Blockly.Block): string => {
   const value = slotNumber(block, 'LENGTH');
   if (value === undefined) return '';

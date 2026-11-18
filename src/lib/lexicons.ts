@@ -355,6 +355,7 @@ const COMPARISON_SYMBOL: Record<LengthComparison, string> = {
 
 export type Condition =
   | { kind: "pinyin"; pattern: string }
+  | { kind: "pinyinRegex"; pattern: string }
   | { kind: "wordLength"; value: number; comparison: LengthComparison }
   | {
       kind: "path";
@@ -374,6 +375,7 @@ export type Condition =
  */
 const CONDITION_SCHEMA_TYPES: Partial<Record<Condition["kind"], readonly string[]>> = {
   pinyin: ["SPinyin", "SPinyinRegex"],
+  pinyinRegex: ["SPinyinRegex"],
   wordLength: ["SWordLength"],
   path: ["SPath"],
   enumValue: ["SEnum"],
@@ -396,6 +398,15 @@ function assertInteger(value: number, label: string) {
 function pinyin(pattern: string): Condition {
   assertValue(pattern, "拼音模式");
   return { kind: "pinyin", pattern };
+}
+
+function pinyinRegex(pattern: string): Condition {
+  if (!pattern) throw new LexiconQueryError("拼音正则不能为空");
+  // `{}` and `|` belong to the pattern; only the `/` delimiters and line
+  // breaks would cut the segment short.
+  if (pattern.includes("/") || /[\n\r]/.test(pattern))
+    throw new LexiconQueryError(`拼音正则含有保留字符：${pattern}`);
+  return { kind: "pinyinRegex", pattern };
 }
 
 function wordLength(
@@ -448,6 +459,7 @@ function raw(dsl: string): Condition {
 /** Condition constructors; every value is checked before it reaches the DSL. */
 export const lex = {
   pinyin,
+  pinyinRegex,
   wordLength,
   path,
   enum: enumValue,
@@ -484,6 +496,8 @@ function renderCondition(condition: Condition): string {
   switch (condition.kind) {
     case "pinyin":
       return `:${condition.pattern}`;
+    case "pinyinRegex":
+      return `:/${condition.pattern}/`;
     case "wordLength":
       return `=${COMPARISON_SYMBOL[condition.comparison]}${condition.value}`;
     case "path":
@@ -547,6 +561,7 @@ export function groupSupportsCondition(
 
 const CONDITION_LABEL: Record<Condition["kind"], string> = {
   pinyin: "拼音",
+  pinyinRegex: "拼音正则",
   wordLength: "长度",
   path: "路径",
   enumValue: "枚举",

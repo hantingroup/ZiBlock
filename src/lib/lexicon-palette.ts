@@ -21,6 +21,7 @@ import {
 const QUERY_BLOCK_TYPES = [
   "lexicon_length",
   "lexicon_pinyin",
+  "lexicon_pinyin_regex",
   "lexicon_regex",
   "lexicon_index",
   "lexicon_enum",
@@ -34,6 +35,7 @@ const QUERY_BLOCK_TYPES = [
 const CONDITION_KINDS: Record<string, Condition["kind"] | undefined> = {
   lexicon_length: "wordLength",
   lexicon_pinyin: "pinyin",
+  lexicon_pinyin_regex: "pinyinRegex",
   lexicon_regex: "regex",
   lexicon_index: "index",
   lexicon_enum: "enumValue",

@@ -34,6 +34,7 @@ const ENUM_LIST_ID = "ziblock-enum-values";
 
 export const CONDITION_KINDS: Record<string, Condition["kind"] | undefined> = {
   lexicon_pinyin: "pinyin",
+  lexicon_pinyin_regex: "pinyinRegex",
   lexicon_length: "wordLength",
   lexicon_path: "path",
   lexicon_enum: "enumValue",
@@ -496,6 +497,7 @@ function schemaGroupOptions(block: Blockly.Block): Blockly.MenuOption[] {
 export function conditionKindLabel(kind: Condition["kind"]): string {
   return {
     pinyin: "拼音",
+    pinyinRegex: "拼音正则",
     wordLength: "长度",
     path: "路径",
     enumValue: "枚举",

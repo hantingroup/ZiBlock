@@ -132,6 +132,14 @@
   extensions: [lexicon_condition]
   helpUrl: "https://tianzi.hongbot.icu/howto#拼音"
 
+- type: lexicon_pinyin_regex
+  message0: "拼音正则 %1"
+  args0:
+    - { type: field_input, name: PATTERN }
+  <<: *condition_statement
+  extensions: [lexicon_condition]
+  helpUrl: "https://tianzi.hongbot.icu/howto#拼音正则"
+
 - type: lexicon_length
   message0: "长度 %1 %2"
   args0:
