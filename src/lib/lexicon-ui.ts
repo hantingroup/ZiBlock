@@ -10,7 +10,7 @@
 
 import * as Blockly from "blockly";
 import { ALIAS_ENTRIES, type AliasEntry } from "./aliases";
-import { addConditionPalette } from "./lexicon-palette";
+import { addConditionPalette, syncLexiconQueryRow } from "./lexicon-palette";
 import {
   conditionsForGroup,
   getCachedLexiconMeta,
@@ -774,12 +774,20 @@ Blockly.Extensions.register("lexicon_block", function (this: Blockly.Block) {
     this.workspace.addChangeListener((event) => {
       if (event.isUiEvent || this.isDisposed()) return;
       refreshLexiconChildren(this);
+      // Blockly re-shows every input when a collapsed block is expanded, and
+      // does that after firing the change; check once it has finished.
+      queueMicrotask(() => syncLexiconQueryRow(this));
     });
     // The gear opens a flyout of query blocks beside the block, so they can
     // be dragged straight into the query slot.
     if (this instanceof Blockly.BlockSvg) addConditionPalette(this);
   }
   updateLexiconBlock(this);
+  // Without conditions the query row is removed until the gear is opened. A
+  // saved workspace connects its conditions while events are disabled, after
+  // the block is built, so only reshape it right away when that cannot happen.
+  if (Blockly.Events.isEnabled()) syncLexiconQueryRow(this);
+  queueMicrotask(() => syncLexiconQueryRow(this));
 });
 
 Blockly.Extensions.register(

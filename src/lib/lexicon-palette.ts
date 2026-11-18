@@ -209,6 +209,10 @@ class ConditionPalette {
   private currentIcon: ConditionPaletteIcon | null = null;
   private request = 0;
 
+  isOpenFor(block: Blockly.Block): boolean {
+    return this.currentBlock === block;
+  }
+
   constructor(workspace: Blockly.WorkspaceSvg) {
     this.workspace = workspace;
     workspace.addChangeListener((event) => {
@@ -239,6 +243,9 @@ class ConditionPalette {
     this.close();
     this.currentBlock = block;
     this.currentIcon = icon;
+    // Bring the query row back while the bubble is open, even when empty, so
+    // conditions can be dropped into it.
+    syncLexiconQueryRow(block);
     const token = ++this.request;
 
     const name = String(block.getFieldValue("NAME") ?? "");
@@ -276,11 +283,14 @@ class ConditionPalette {
   }
 
   private close() {
+    const block = this.currentBlock;
     this.currentIcon?.setPaletteBubble(null);
     this.bubble?.dispose();
     this.bubble = null;
     this.currentBlock = null;
     this.currentIcon = null;
+    // The row is only kept when conditions are connected.
+    if (block) syncLexiconQueryRow(block);
   }
 }
 
@@ -293,6 +303,48 @@ function paletteFor(workspace: Blockly.WorkspaceSvg): ConditionPalette {
     palettes.set(workspace, palette);
   }
   return palette;
+}
+
+function isPaletteOpen(block: Blockly.Block): boolean {
+  const workspace = block.workspace;
+  if (!(workspace instanceof Blockly.WorkspaceSvg)) return false;
+  return palettes.get(workspace)?.isOpenFor(block) ?? false;
+}
+
+/**
+ * The query row only exists when it is in use: it is shown while conditions
+ * are connected or while the gear bubble is open (so blocks can be dropped
+ * in), and removed entirely otherwise.
+ *
+ * Hiding the statement input is not enough: Blockly still reserves its bottom
+ * spacing, which would leave the one-row block visibly bottom-heavy. Removing
+ * the input makes the block lay out like every other expression block.
+ */
+export function syncLexiconQueryRow(block: Blockly.Block) {
+  if (block.isDisposed() || !(block instanceof Blockly.BlockSvg)) return;
+  // A collapsed block keeps every input hidden; expanding re-applies this.
+  if (block.isCollapsed()) return;
+  // Blockly may still be using the slot's connection mid-drag (a condition
+  // being pulled out): changing the layout now would move it under the pointer.
+  if (block.workspace.isDragging()) return;
+  const input = block.getInput("QUERY");
+  const hasConditions = !!input?.connection?.targetBlock();
+  const needed = hasConditions || isPaletteOpen(block);
+  if (needed === !!input) return;
+  if (needed) {
+    const query = block.appendStatementInput("QUERY");
+    query.setCheck("TzQuery");
+    query.appendField("查询");
+    // An input added after the block was rendered is not registered as a drag
+    // target on its own, so conditions could not be dropped into it.
+    if (block.rendered && !block.isInFlyout)
+      (query.connection as Blockly.RenderedConnection | null)?.setTracking(
+        true,
+      );
+  } else {
+    block.removeInput("QUERY");
+  }
+  block.render();
 }
 
 class ConditionPaletteIcon extends Blockly.icons.MutatorIcon {
