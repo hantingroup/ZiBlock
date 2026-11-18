@@ -1,6 +1,7 @@
 <script module>
   import ".";
   import * as Blockly from "blockly";
+  import { refreshBlockEffectiveness } from "./block-state";
   import { migrateWorkspaceState } from "./shadow-slots";
 
   // The default (15px) is chunky next to the grid; keep scrolling usable but
@@ -80,10 +81,25 @@
     // out no longer closes it, so several blocks can be picked in a row.
     const flyout = workspace.getFlyout();
     if (flyout instanceof Blockly.Flyout) flyout.setAutoClose(false);
+    // Refreshing may toggle Blockly's disabled state, which fires change
+    // events; ignore those while the state pass is running.
+    let refreshing = false;
+    const refresh = (ws: Blockly.WorkspaceSvg) => {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        refreshBlockEffectiveness(ws);
+      } finally {
+        refreshing = false;
+      }
+    };
+
     restoreWorkspace(workspace);
+    refresh(workspace);
     emit(workspace);
     workspace.addChangeListener((event) => {
-      if (event.isUiEvent) return;
+      if (event.isUiEvent || refreshing) return;
+      refresh(workspace);
       emit(workspace);
       saveWorkspace(workspace);
     });
