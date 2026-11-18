@@ -18,7 +18,7 @@ contents:
   # Lexicon ====================================================================
   - kind: category
     name: 词库
-    colour: 170
+    colour: 140
     contents:
       - { kind: block, type: lexicon }
       - { kind: block, type: lexicon_length }
@@ -66,7 +66,7 @@ contents:
   # Settings ==================================================================
   - kind: category
     name: 设置
-    colour: "%{BKY_TEXTS_HUE}"
+    colour: 20
     contents:
       - { kind: block, type: config }
       - { kind: block, type: reset }

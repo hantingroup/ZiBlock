@@ -3,6 +3,7 @@
   import * as Blockly from "blockly";
   import { refreshBlockEffectiveness } from "./block-state";
   import { migrateWorkspaceState } from "./shadow-slots";
+  import { AppTheme } from "./theme";
 
   // The default (15px) is chunky next to the grid; keep scrolling usable but
   // visually lighter. Must be set before Blockly.inject creates scrollbars.
@@ -75,6 +76,7 @@
       grid: { colour: "#f0f0f0", length: 12, snap: true, spacing: 32 },
       move: { drag: true, scrollbars: true, wheel: true },
       zoom: { controls: true, pinch: true, wheel: true },
+      theme: AppTheme,
       ...props,
     });
     // Keep the category flyout open: clicking the canvas or dragging a block

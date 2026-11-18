@@ -101,11 +101,11 @@
   tooltip: 展开别名表里的别名；可作为值插入其它空槽
 
 - type: lexicon
-  message0: "词库 %1 输出 %2 查询"
+  message0: "词库 %1 输出 %2"
   args0:
     - { type: field_lexicon_name, name: NAME }
     - { type: field_lexicon_field, name: FIELD }
-  message1: "%1"
+  message1: "查询 %1"
   args1:
     - &lexicon_query
       type: input_statement
@@ -113,6 +113,7 @@
       check: "TzQuery"
   <<:
     <<: *text
+    style: lexicon_blocks
     tooltip: 查询按行「与」组合；「或者」分隔不同的「或」分支
     extensions: [lexicon_block, dual_connection]
 
@@ -124,7 +125,7 @@
   message1: "查询 %1"
   args1: [*lexicon_query]
   output: "String"
-  style: text_blocks
+  style: lexicon_blocks
   extensions: [lexicon_block, dual_connection]
   tooltip: 词库查询结果；可作为值插入其它空槽
 
@@ -132,25 +133,25 @@
 # The query is a C-shaped statement input. Each condition line is one segment;
 # consecutive lines are joined with & (AND). A bare 或者 separator starts a new
 # | (OR) branch, so the stack maps directly onto the DSL grammar without
-# parentheses. 非 and 组 are C-shaped wrappers around a query expression;
-# 非 is expanded with De Morgan when it wraps several conditions or branches.
+# parentheses. 取反 and 组 are C-shaped wrappers around a query expression;
+# 取反 is expanded with De Morgan when it wraps several conditions or branches.
 
 - type: lexicon_or
   message0: "或者"
   previousStatement: "TzQuery"
   nextStatement: "TzQuery"
-  style: text_blocks
+  style: lexicon_blocks
   tooltip: 分隔两个「或」分支；上下两侧各自按「与」组合，不接任何积木
 
 - type: lexicon_not
-  message0: "非 %1"
+  message0: "取反 %1"
   args0:
     - type: input_statement
       name: ITEM
       check: "TzQuery"
   previousStatement: "TzQuery"
   nextStatement: "TzQuery"
-  style: text_blocks
+  style: lexicon_blocks
   extensions: [lexicon_not_block]
   tooltip: 包住查询条件并整体取反；多个「与」条件展开为 !a|!b，多个「或」分支展开为 !a&!b
 
@@ -163,7 +164,7 @@
       check: "TzQuery"
   previousStatement: "TzQuery"
   nextStatement: "TzQuery"
-  style: text_blocks
+  style: lexicon_blocks
   extensions: [lexicon_group_block]
   tooltip: 给包住的每个条件加 @组；「与」行和「或」分支里的条件都会加组
 
@@ -174,7 +175,7 @@
   <<: &condition_statement
     previousStatement: "TzQuery"
     nextStatement: "TzQuery"
-    style: text_blocks
+    style: lexicon_blocks
   extensions: [lexicon_condition]
 
 - type: lexicon_length
@@ -430,13 +431,13 @@
       text: scope
   <<: &variable_dynamic_blocks
     <<: *variable_blocks
-    style: variable_dynamic_blocks
+    style: variable_blocks
 
 - type: variables_get_linger_value
   message0: 导入 %1
   args0: [*input_scope]
   output: "String"
-  style: variable_dynamic_blocks
+  style: variable_blocks
   tooltip: 导入的变量值；可作为值插入其它空槽
 
 - type: variables_set_linger
@@ -508,7 +509,7 @@
         - [除零报错 zerr, zerr]
   <<:
     <<: *statements
-    style: text_blocks
+    style: setting_blocks
     tooltip: 设置本次填字的配置项，输出为空
 
 - type: nocensor
@@ -517,7 +518,7 @@
     - { type: field_input, name: OTP }
   <<:
     <<: *statements
-    style: text_blocks
+    style: setting_blocks
     tooltip: 用 6 位验证码关闭本次填字的屏蔽词；不填会提示当前验证码
 
 - type: reset
@@ -526,5 +527,5 @@
     - { type: field_input, name: SEED }
   <<:
     <<: *statements
-    style: text_blocks
+    style: setting_blocks
     tooltip: 清空缓存与变量并重置随机；种子应放在最前面

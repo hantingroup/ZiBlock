@@ -3,8 +3,8 @@
  *
  * The query is a C-shaped statement input on the lexicon block. Each condition
  * line is one DSL segment; consecutive lines are joined with & (AND). A bare
- * 或者 separator starts a new | (OR) branch. 非 and 组 are C-shaped wrappers;
- * the generator expands 非 with De Morgan when it contains several conditions
+ * 或者 separator starts a new | (OR) branch. 取反 and 组 are C-shaped wrappers;
+ * the generator expands 取反 with De Morgan when it contains several conditions
  * or OR branches.
  */
 
@@ -622,7 +622,7 @@ function validateConditionBlock(block: Blockly.Block) {
   );
 }
 
-/** Direct statements inside a 非/组 wrapper, top to bottom. */
+/** Direct statements inside a 取反/组 wrapper, top to bottom. */
 function innerBlocks(block: Blockly.Block): Blockly.Block[] {
   const blocks: Blockly.Block[] = [];
   for (
@@ -688,7 +688,7 @@ function validateNotBlock(block: Blockly.Block) {
   const warnings: string[] = [];
   for (const child of innerBlocks(block)) {
     if (child.type === "lexicon_or") continue;
-    if (!isQueryStatement(child)) warnings.push("非里只能放查询条件");
+    if (!isQueryStatement(child)) warnings.push("取反里只能放查询条件");
   }
   block.setWarningText(
     warnings.length ? [...new Set(warnings)].join("\n") : null,
