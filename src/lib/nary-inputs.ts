@@ -56,7 +56,7 @@ function syncSpareInputs(
   return changed;
 }
 
-const LISTENER_FLAG = "ziblockNaryListener";
+const LISTENER_FLAG = "ZiBlockNaryListener";
 
 function watchSpareInputs(
   block: Blockly.Block,

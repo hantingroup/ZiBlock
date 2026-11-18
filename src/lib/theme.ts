@@ -8,8 +8,8 @@
 
 import * as Blockly from "blockly";
 
-export const AppTheme = Blockly.Theme.defineTheme("ziblock", {
-  name: "ziblock",
+export const AppTheme = Blockly.Theme.defineTheme("ZiBlock", {
+  name: "ZiBlock",
   base: Blockly.Themes.Classic,
   blockStyles: {
     lexicon_blocks: { colourPrimary: "140" },
