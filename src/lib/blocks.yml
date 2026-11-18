@@ -70,14 +70,10 @@
 - type: transform
   message0: 滤镜 %1
   args0: [*statement_body]
-  message1: 方式 %1
+  message1: 方式 %1 字符集 %2 写名 %3
   args1:
     - { type: field_transform_name, name: OP }
-  message2: 字符集 %1
-  args2:
     - { type: field_input, name: CHARSET }
-  message3: 写名 %1
-  args3:
     - { type: field_input, name: CNAME }
   <<:
     <<: *text
