@@ -370,29 +370,28 @@ export class FieldEnumValue extends Blockly.FieldTextInput {
 // the public `reserved/alias.tsv`). Only table entries are valid: unlike the
 // lexicon picker there is no free-text editor.
 
-const MACRO_NONE: Blockly.MenuOption = ["选择宏…", ""];
+const DEFAULT_MACRO = "一";
 
 function macroOptions(): Blockly.MenuOption[] {
-  return [
-    MACRO_NONE,
-    ...getMacroEntries().map(({ key }): Blockly.MenuOption => [key, key]),
-  ];
+  return getMacroEntries().map(({ key }): Blockly.MenuOption => [key, key]);
 }
 
 export class FieldMacroName extends FlexibleDropdown {
-  constructor(value = "") {
+  constructor(value = DEFAULT_MACRO) {
     super(macroOptions, value);
   }
 
   static override fromJson(options: Blockly.FieldConfig): FieldMacroName {
     void loadMacroEntries();
-    return new FieldMacroName((options as { text?: string }).text ?? "");
+    return new FieldMacroName(
+      (options as { text?: string }).text ?? DEFAULT_MACRO,
+    );
   }
 
   /**
-   * Only the empty choice and the fetched table's keys are accepted. While the
-   * table is still on its way the saved value is let through, so restoring a
-   * workspace does not lose the user's choice.
+   * Only the fetched table's keys are accepted. While the table is still on
+   * its way the saved value is let through, so restoring a workspace does not
+   * lose the user's choice.
    */
   protected override doClassValidation_(newValue?: string): string | null {
     const value = newValue ?? "";
