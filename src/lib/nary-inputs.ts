@@ -129,21 +129,19 @@ Blockly.common.defineBlocks({
               ["按位异或", "^"],
             ],
           },
-          {
-            type: "field_dropdown",
-            name: "SEP",
-            options: [
-              ["逗号 ，", "，"],
-              ["顿号 、", "、"],
-              ["空格", " "],
-            ],
-          },
+          { type: "input_value", name: "SEP" },
           { type: "input_value", name: "ITEM0", check: ["String"] }
         ],
         output: "String",
         style: "math_blocks",
         inputsInline: false,
         tooltip: "把各段按同一个分隔符拆开后从左到右做归约运算",
+      });
+      // The separator is an editable literal, not a fixed dropdown, so it can
+      // also be supplied by an expression.
+      this.getInput("SEP")?.connection?.setShadowState({
+        type: "literal_text",
+        fields: { TEXT: "，" },
       });
       this.setPreviousStatement(true, "TzText");
       this.setNextStatement(true, "TzText");

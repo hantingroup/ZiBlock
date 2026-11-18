@@ -581,7 +581,7 @@ Generator.forBlock['format'] = (block: Blockly.Block): [string, number] => {
 
 Generator.forBlock['reduce_calc'] = (block: Blockly.Block): [string, number] => {
   const op = fieldText(block, 'OP')
-  const sep = String(block.getFieldValue('SEP') ?? '') || '，'
+  const sep = slotText(block, 'SEP') || '，'
   const items = naryCodes(block)
   if (!op || !items.length) return ['', ORDER_NONE]
   return [translate(`#${op} ${items.join(sep)}`), ORDER_NONE]
