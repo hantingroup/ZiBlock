@@ -11,29 +11,17 @@ contents:
       # - { kind: block, type: translate }
       # - { kind: block, type: translate_multiline }
       # - { kind: block, type: translate_block }
-      - kind: block
-        type: slice
-        inputs:
-          BODY:
-            shadow:
-              type: text_multiline
-      - kind: block
-        type: transform
-        inputs:
-          BODY:
-            shadow:
-              type: text_multiline
+      - { kind: block, type: slice }
+      - { kind: block, type: transform }
       - { kind: block, type: alias }
-      - { kind: block, type: alias_value }
       - { kind: block, type: join }
-      - { kind: block, type: lexicon }
-      - { kind: block, type: lexicon_value }
 
-  # Lexicon query =============================================================
+  # Lexicon ====================================================================
   - kind: category
-    name: 词库查询
-    colour: "%{BKY_TEXTS_HUE}"
+    name: 词库
+    colour: 170
     contents:
+      - { kind: block, type: lexicon }
       - { kind: block, type: lexicon_length }
       - { kind: block, type: lexicon_pinyin }
       - { kind: block, type: lexicon_regex }
@@ -53,17 +41,8 @@ contents:
       - { kind: block, type: calculate }
       - { kind: block, type: choice }
       - { kind: block, type: range }
-      - { kind: block, type: range_value }
-      - kind: block
-        type: format
-        inputs:
-          BODY: &shadow_multiline
-            shadow:
-              type: text_multiline
-      - kind: block
-        type: reduce_calc
-        inputs:
-          BODY: *shadow_multiline
+      - { kind: block, type: format }
+      - { kind: block, type: reduce_calc }
 
   # Controls ==================================================================
   - kind: category
@@ -78,18 +57,12 @@ contents:
     colour: "%{BKY_VARIABLES_HUE}"
     contents:
       - { kind: block, type: variables_get }
-      - { kind: block, type: variables_get_value }
       - { kind: block, type: variables_set }
       - { kind: block, type: variables_set_block }
       - { kind: block, type: variables_get_linger }
-      - { kind: block, type: variables_get_linger_value }
       - { kind: block, type: variables_set_linger }
-      - kind: block
-        type: inner_value_set
-        inputs:
-          BODY: *shadow_multiline
+      - { kind: block, type: inner_value_set }
       - { kind: block, type: inner_value_get }
-      - { kind: block, type: inner_value_get_value }
 
   # Settings ==================================================================
   - kind: category

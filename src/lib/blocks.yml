@@ -2,21 +2,21 @@
 # `field_input`, `field_number` and `field_multilinetext` arguments are turned
 # into value inputs with editable literal shadow blocks (see shadow-slots.ts),
 # so a value reporter can be dropped onto any of them.
+#
+# Every general block is a string expression (output String). Statement
+# connections are reserved for the lexicon query C-shaped editor below.
 
 # Text ========================================================================
 
 - type: text
   message0: “ %1 ”
   args0:
-    - &input_text
-      type: field_input
-      name: TEXT
+    - { type: field_input, name: TEXT, shadow: false }
   <<:
     - &text_text
       <<: &text
         <<: &statements
-          previousStatement: null
-          nextStatement: null
+          output: "String"
         style: text_blocks
       tooltip: "%{BKY_TEXT_TEXT_TOOLTIP}"
       helpUrl: "%{BKY_TEXT_TEXT_HELPURL}"
@@ -24,14 +24,15 @@
 - type: text_multiline
   message0: ¶ %1
   args0:
-    - &field_input_multiline
-      type: field_multilinetext
-      name: TEXT
+    - { type: field_multilinetext, name: TEXT, shadow: false }
   <<: *text_text
 
 - type: translate
   message0: 〚 %1 〛
-  args0: [*input_text]
+  args0:
+    - &input_text
+      type: field_input
+      name: TEXT
   <<: &text_translate
     <<: *text
     tooltip: "%{BKY_TEXT_TRANSLATE_TOOLTIP}"
@@ -39,14 +40,17 @@
 
 - type: translate_multiline
   message0: ⟪ %1 ⟫
-  args0: [*field_input_multiline]
+  args0:
+    - &field_input_multiline
+      type: field_multilinetext
+      name: TEXT
   <<: *text_translate
 
 - type: translate_block
   message0: "%1"
   args0:
     - &statement_body
-      type: input_statement
+      type: input_value
       name: BODY
   <<: *text_translate
 
@@ -95,17 +99,8 @@
   style: text_blocks
   tooltip: 展开别名表里的别名；可作为值插入其它空槽
 
-- type: join
-  message0: 拼接 %1 %2
-  args0:
-    - { type: field_input, name: A }
-    - { type: field_input, name: B }
-  output: "String"
-  style: text_blocks
-  tooltip: 把两段文本接在一起，左边在前；可以嵌套拼接更多段
-
 - type: lexicon
-  message0: "词典 %1 输出 %2 查询"
+  message0: "词库 %1 输出 %2 查询"
   args0:
     - { type: field_lexicon_name, name: NAME }
     - { type: field_lexicon_field, name: FIELD }
@@ -121,7 +116,7 @@
     extensions: [lexicon_block]
 
 - type: lexicon_value
-  message0: "词典 %1 输出 %2"
+  message0: "词库 %1 输出 %2"
   args0:
     - { type: field_lexicon_name, name: NAME }
     - { type: field_lexicon_field, name: FIELD }
@@ -252,12 +247,6 @@
     tooltip: "%{BKY_MATH_CALCULATE_TOOLTIP}"
     helpUrl: "%{BKY_MATH_CALCULATE_HELPURL}"
 
-- type: choice
-  message0: 选择
-  message1: "%1"
-  args1: [*statement_body]
-  <<: *math_blocks
-
 - type: range
   message0: 随机数 %1 - %2
   args0: &range_bounds
@@ -350,36 +339,6 @@
     <<: *math_blocks
     tooltip: 把目标值按格式与字形重新渲染（不随机）
 
-- type: reduce_calc
-  message0: "# %1"
-  args0:
-    - type: field_dropdown
-      name: OP
-      options:
-        - ["加 +", "+"]
-        - ["减 -", "-"]
-        - ["乘 *", "*"]
-        - ["除 /", "/"]
-        - ["整除 //", "//"]
-        - ["取余 %", "%"]
-        - ["幂 **", "**"]
-        - ["按位与 &", "&"]
-        - ["按位或 |", "|"]
-        - ["按位异或 ^", "^"]
-  message1: "%1"
-  args1: [*statement_body]
-  message2: 分隔 %1
-  args2:
-    - type: field_dropdown
-      name: SEP
-      options:
-        - [逗号 ，, ，]
-        - [顿号 、, 、]
-        - [空格, " "]
-  <<:
-    <<: *math_blocks
-    tooltip: 把各段按同一个分隔符拆开后从左到右做归约运算
-
 # Controls ====================================================================
 
 - type: controls_repeat
@@ -450,7 +409,7 @@
 - type: variables_set_block
   message0: 设置 %1
   args0:
-    - type: input_statement
+    - type: input_value
       name: VAR
   message1: 为 %1
   args1: [*statement_body]

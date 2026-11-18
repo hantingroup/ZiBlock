@@ -132,34 +132,28 @@ function slotNumber(
   return Number.isFinite(value) ? value : undefined
 }
 
-/** Code of a statement input, including its chained siblings. */
-function statementCode(block: Blockly.Block, input: string): string {
-  return blockToCode(block.getInputTargetBlock(input))
-}
+// Top-level concatenation ====================================================
+//
+// Every general block is a string expression. The DSL concatenates top-level
+// expressions directly, so the stock workspaceToCode (which joins top blocks
+// with newlines) is replaced.
 
-function joinBlock(
-  block: Blockly.Block | null,
-  sep: string | null = null,
-  code: string = extractCode(Generator.blockToCode(block)),
+Generator.workspaceToCode = function (
+  this: Blockly.Generator,
+  workspace?: Blockly.Workspace,
 ): string {
-  const nextBlock = block?.nextConnection?.targetBlock();
-  if (sep !== null && nextBlock)
-    code += sep + joinBlock(nextBlock, sep);
-  return code;
-}
-
-function blockToCode(
-  block: Blockly.Block | null,
-  code: string = extractCode(Generator.blockToCode(block)),
-): string {
-  return joinBlock(block, '', code);
-}
-
-Generator.scrub_ = (block: Blockly.Block, code: string, thisOnly: boolean) => {
-  if (!block.getParent())
-    code = joinBlock(block, '', code)
-  return code;
-}
+  if (!workspace) throw new Error('No workspace supplied to workspaceToCode');
+  this.init(workspace);
+  const code = workspace
+    .getTopBlocks(true)
+    .map((block) => {
+      const generated = this.blockToCode(block);
+      return Array.isArray(generated) ? generated[0] : generated;
+    })
+    .filter(Boolean)
+    .join('');
+  return this.finish(code);
+};
 
 // Value slots ================================================================
 
@@ -173,44 +167,49 @@ Generator.forBlock['literal_number'] = (block: Blockly.Block): [string, number] 
 // Text =======================================================================
 
 Generator.forBlock['text_multiline'] =
-Generator.forBlock['text'] = (block: Blockly.Block) => {
-    return slotCode(block, 'TEXT');
-  }
+Generator.forBlock['text'] = (block: Blockly.Block): [string, number] => [
+  String(block.getFieldValue('TEXT') ?? ''),
+  ORDER_NONE,
+]
 
 Generator.forBlock['translate_multiline'] =
-Generator.forBlock['translate'] = (block: Blockly.Block) => {
-    return translate(slotCode(block, 'TEXT'));
-  }
+Generator.forBlock['translate'] = (block: Blockly.Block): [string, number] => [
+  translate(slotCode(block, 'TEXT')),
+  ORDER_NONE,
+]
 
-Generator.forBlock['translate_block'] = (block: Blockly.Block) => {
-  return translate(escape(blockToCode(block.getInputTargetBlock('BODY'))));
-}
+Generator.forBlock['translate_block'] = (
+  block: Blockly.Block,
+): [string, number] => [
+  translate(escapedSlotText(block, 'BODY', false)),
+  ORDER_NONE,
+]
 
-Generator.forBlock['slice'] = (block: Blockly.Block) => {
-  const body = statementCode(block, 'BODY')
+Generator.forBlock['slice'] = (block: Blockly.Block): [string, number] => {
+  const body = slotCode(block, 'BODY')
   const start = slotText(block, 'START')
   const stop = slotText(block, 'STOP')
   const step = slotText(block, 'STEP')
-  if (!body) return ''
-  if (!start && !stop && !step) return body
+  if (!body) return ['', ORDER_NONE]
+  if (!start && !stop && !step) return [body, ORDER_NONE]
   let code = `${body}:${start}`
   if (stop || step) code += `:${stop}`
   if (step) code += `:${step}`
-  return translate(code)
+  return [translate(code), ORDER_NONE]
 }
 
-Generator.forBlock['transform'] = (block: Blockly.Block) => {
-  const body = statementCode(block, 'BODY')
+Generator.forBlock['transform'] = (block: Blockly.Block): [string, number] => {
+  const body = slotCode(block, 'BODY')
   const op = fieldText(block, 'OP')
   const cname = slotText(block, 'CNAME')
-  if (!body || !op) return ''
+  if (!body || !op) return ['', ORDER_NONE]
   let code = `${body}:${op}`
   if (!isFilterOp(op)) {
     const charset = escapedSlotText(block, 'CHARSET', false)
     if (charset) code += `@${charset}`
   }
   if (cname) code += `>${cname}`
-  return translate(code)
+  return [translate(code), ORDER_NONE]
 }
 
 function aliasCode(block: Blockly.Block): string {
@@ -219,17 +218,17 @@ function aliasCode(block: Blockly.Block): string {
   return translate(alias)
 }
 
-Generator.forBlock['alias'] = aliasCode
-
+Generator.forBlock['alias'] =
 Generator.forBlock['alias_value'] = (block: Blockly.Block): [string, number] => [
   aliasCode(block),
   ORDER_NONE,
 ]
 
 Generator.forBlock['join'] = (block: Blockly.Block): [string, number] => [
-  slotCode(block, 'A') + slotCode(block, 'B'),
+  naryCodes(block).join(''),
   ORDER_NONE,
 ]
+
 
 // Lexicon ====================================================================
 
@@ -440,8 +439,7 @@ function lexiconCode(block: Blockly.Block): string {
   return renderExpression(name, queryCode(block), field);
 }
 
-Generator.forBlock['lexicon'] = lexiconCode
-
+Generator.forBlock['lexicon'] =
 Generator.forBlock['lexicon_value'] = (
   block: Blockly.Block,
 ): [string, number] => [lexiconCode(block), ORDER_NONE]
@@ -504,13 +502,26 @@ Generator.forBlock['lexicon_regex'] = (block: Blockly.Block): string =>
 
 // Math =======================================================================
 
-Generator.forBlock['number'] = (block: Blockly.Block) => {
-  return translate(Symbols.Immediate + slotCode(block, 'TEXT'));
+/** Codes of an n-ary ITEM0.. input list. */
+function naryCodes(block: Blockly.Block): string[] {
+  const codes: string[] = []
+  for (let index = 0; block.getInput(`ITEM${index}`); index++) {
+    const code = Generator.valueToCode(block, `ITEM${index}`, ORDER_NONE)
+    if (code) codes.push(code)
+  }
+  return codes
 }
 
-Generator.forBlock['choice'] = (block: Blockly.Block) => {
-  const body = block.getInputTargetBlock('BODY');
-  return translate(body && joinBlock(body, ' '));
+Generator.forBlock['number'] = (block: Blockly.Block): [string, number] => [
+  translate(Symbols.Immediate + slotCode(block, 'TEXT')),
+  ORDER_NONE,
+]
+
+Generator.forBlock['choice'] = (block: Blockly.Block): [string, number] => {
+  const items = naryCodes(block)
+  return items.length
+    ? [translate(items.join(' ')), ORDER_NONE]
+    : ['', ORDER_NONE]
 }
 
 function rangeCode(block: Blockly.Block): string {
@@ -535,65 +546,77 @@ function rangeCode(block: Blockly.Block): string {
   return translate(code)
 }
 
-Generator.forBlock['range'] = rangeCode
-
+Generator.forBlock['range'] =
 Generator.forBlock['range_value'] = (
   block: Blockly.Block,
 ): [string, number] => [rangeCode(block), ORDER_NONE]
 
-Generator.forBlock['format'] = (block: Blockly.Block) => {
-  const body = statementCode(block, 'BODY')
+Generator.forBlock['format'] = (block: Blockly.Block): [string, number] => {
+  const body = slotCode(block, 'BODY')
   const fspec = slotText(block, 'FSPEC')
   const fusr = String(block.getFieldValue('FUSR') ?? '')
   const cname = slotText(block, 'CNAME')
-  if (!body) return ''
-  if (!fspec && !fusr) return body
+  if (!body) return ['', ORDER_NONE]
+  if (!fspec && !fusr) return [body, ORDER_NONE]
   let code = `${body}:${fspec}`
   // The glyph separator is only accepted together with a format spec; with no
   // spec the glyph follows the colon directly (`[[3:cn]]`).
   if (fspec && fusr) code += `;${fusr}`
   else if (fusr) code += fusr
   if (cname) code += `>${cname}`
-  return translate(code)
+  return [translate(code), ORDER_NONE]
 }
 
-Generator.forBlock['reduce_calc'] = (block: Blockly.Block) => {
+Generator.forBlock['reduce_calc'] = (block: Blockly.Block): [string, number] => {
   const op = fieldText(block, 'OP')
   const sep = String(block.getFieldValue('SEP') ?? '') || '，'
-  const body = block.getInputTargetBlock('BODY')
-  if (!body) return ''
-  return translate(`#${op} ${joinBlock(body, sep)}`)
+  const items = naryCodes(block)
+  if (!op || !items.length) return ['', ORDER_NONE]
+  return [translate(`#${op} ${items.join(sep)}`), ORDER_NONE]
 }
 
-Generator.forBlock['calculate'] = (block: Blockly.Block) => {
-  return translate(Symbols.Calculate + slotCode(block, 'TEXT'));
-}
+Generator.forBlock['calculate'] = (block: Blockly.Block): [string, number] => [
+  translate(Symbols.Calculate + slotCode(block, 'TEXT')),
+  ORDER_NONE,
+]
 
 // Controls ===================================================================
 
-Generator.forBlock['controls_repeat'] = (block: Blockly.Block) => {
+Generator.forBlock['controls_repeat'] = (
+  block: Blockly.Block,
+): [string, number] => {
   const times = slotText(block, 'TIMES');
-  const body = block.getInputTargetBlock('BODY');
+  const body = slotCode(block, 'BODY');
   const lazy = block.getFieldValue('LAZY');
-  if (!times) return '';
+  if (!times) return ['', ORDER_NONE];
   const symbol = lazy === 'TRUE' ? Symbols.RepeatLazy : Symbols.Repeat;
-  return translate(blockToCode(body) + symbol + times);
+  return [translate(body + symbol + times), ORDER_NONE];
 }
 
 // Variables ==================================================================
 
-Generator.forBlock['variables_set'] = (block: Blockly.Block) => {
-  const value = blockToCode(block.getInputTargetBlock('BODY'));
+Generator.forBlock['variables_set'] = (
+  block: Blockly.Block,
+): [string, number] => {
+  const value = slotCode(block, 'BODY');
   const name = block.getField('VAR')!.getText();
   const echo = block.getFieldValue('ECHO') === 'TRUE';
-  return translate(value + Symbols.Cache + name + (echo ? Symbols.Cache : ''));
+  return [
+    translate(value + Symbols.Cache + name + (echo ? Symbols.Cache : '')),
+    ORDER_NONE,
+  ];
 }
 
-Generator.forBlock['variables_set_block'] = (block: Blockly.Block) => {
-  const value = blockToCode(block.getInputTargetBlock('BODY'));
-  const name = blockToCode(block.getInputTargetBlock('VAR'));
+Generator.forBlock['variables_set_block'] = (
+  block: Blockly.Block,
+): [string, number] => {
+  const value = slotCode(block, 'BODY');
+  const name = slotCode(block, 'VAR');
   const echo = block.getFieldValue('ECHO') === 'TRUE';
-  return translate(value + Symbols.Cache + name + (echo ? Symbols.Cache : ''));
+  return [
+    translate(value + Symbols.Cache + name + (echo ? Symbols.Cache : '')),
+    ORDER_NONE,
+  ];
 }
 
 function variablesGetCode(block: Blockly.Block): string {
@@ -601,8 +624,7 @@ function variablesGetCode(block: Blockly.Block): string {
   return translate(Symbols.Reference + name);
 }
 
-Generator.forBlock['variables_get'] = variablesGetCode
-
+Generator.forBlock['variables_get'] =
 Generator.forBlock['variables_get_value'] = (
   block: Blockly.Block,
 ): [string, number] => [variablesGetCode(block), ORDER_NONE]
@@ -611,27 +633,31 @@ function lingerGetCode(block: Blockly.Block): string {
   return translate(Symbols.LingerRef + slotText(block, 'SCOPE'));
 }
 
-Generator.forBlock['variables_get_linger'] = lingerGetCode
-
+Generator.forBlock['variables_get_linger'] =
 Generator.forBlock['variables_get_linger_value'] = (
   block: Blockly.Block,
 ): [string, number] => [lingerGetCode(block), ORDER_NONE]
 
-Generator.forBlock['variables_set_linger'] = (block: Blockly.Block) => {
+Generator.forBlock['variables_set_linger'] = (
+  block: Blockly.Block,
+): [string, number] => {
   const name = block.getField('VAR')!.getText();
   const scope = slotText(block, 'SCOPE');
-  return translate(name + Symbols.LingerAssign + scope);
+  return [translate(name + Symbols.LingerAssign + scope), ORDER_NONE];
 }
 
-Generator.forBlock['inner_value_set'] = (block: Blockly.Block) => {
-  const body = statementCode(block, 'BODY')
+Generator.forBlock['inner_value_set'] = (
+  block: Blockly.Block,
+): [string, number] => {
+  const body = slotCode(block, 'BODY')
   const field = slotText(block, 'FIELD')
   const name = slotText(block, 'NAME')
   const echo = block.getFieldValue('ECHO') === 'TRUE'
-  if (!body) return ''
-  if (!field) return ''
-  if (!name) return ''
-  return translate(`${body}>>${field}:${name}${echo ? '>' : ''}`)
+  if (!body || !field || !name) return ['', ORDER_NONE]
+  return [
+    translate(`${body}>>${field}:${name}${echo ? '>' : ''}`),
+    ORDER_NONE,
+  ]
 }
 
 function innerValueGetCode(block: Blockly.Block): string {
@@ -641,24 +667,24 @@ function innerValueGetCode(block: Blockly.Block): string {
   return translate(`<<${field ? `${field}:` : ''}${name}`)
 }
 
-Generator.forBlock['inner_value_get'] = innerValueGetCode
-
+Generator.forBlock['inner_value_get'] =
 Generator.forBlock['inner_value_get_value'] = (
   block: Blockly.Block,
 ): [string, number] => [innerValueGetCode(block), ORDER_NONE]
 
 // Settings ===================================================================
 
-Generator.forBlock['config'] = (block: Blockly.Block) => {
-  return translate(`config<${fieldText(block, 'ITEM')}>`)
-}
+Generator.forBlock['config'] = (block: Blockly.Block): [string, number] => [
+  translate(`config<${fieldText(block, 'ITEM')}>`),
+  ORDER_NONE,
+]
 
-Generator.forBlock['nocensor'] = (block: Blockly.Block) => {
+Generator.forBlock['nocensor'] = (block: Blockly.Block): [string, number] => {
   const otp = slotText(block, 'OTP').toUpperCase()
-  return translate('nocensor' + (otp ? ` ${otp}` : ''))
+  return [translate('nocensor' + (otp ? ` ${otp}` : '')), ORDER_NONE]
 }
 
-Generator.forBlock['reset'] = (block: Blockly.Block) => {
+Generator.forBlock['reset'] = (block: Blockly.Block): [string, number] => {
   const seed = slotText(block, 'SEED')
-  return translate('RST' + (seed ? ` ${seed}` : ''))
+  return [translate('RST' + (seed ? ` ${seed}` : '')), ORDER_NONE]
 }

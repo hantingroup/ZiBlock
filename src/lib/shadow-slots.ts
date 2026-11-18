@@ -64,6 +64,14 @@ export function prepareShadowSlots(
           arg && typeof arg === "object" ? SHADOW_KINDS[arg.type] : undefined;
         if (!kind || !arg.name) return arg;
 
+        // Literal text blocks are already replaceable expressions. Their text
+        // stays a plain field instead of a nested value slot.
+        if (arg.shadow === false) {
+          const plain = { ...arg };
+          delete plain.shadow;
+          return plain;
+        }
+
         slots.push({
           input: arg.name,
           shadowType: kind.shadowType,
@@ -116,7 +124,7 @@ export function defineLiteralBlocks() {
       type: "literal_number",
       message0: "%1",
       args0: [{ type: "field_number", name: "TEXT" }],
-      output: "Number",
+      output: "String",
       style: "math_blocks",
       tooltip: "数字字面量；可以用值积木替换",
     },
