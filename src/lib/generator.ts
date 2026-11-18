@@ -4,6 +4,7 @@ import {
   groupSupportsCondition,
   lex,
   lexiconQuery,
+  LexiconQueryError,
   renderExpression,
   segment,
   type Condition,
@@ -11,11 +12,11 @@ import {
   type LexiconMeta,
 } from './lexicons';
 import {
-  conditionKindLabel,
   effectiveConditionKind,
   findEnclosingLexicon,
   lexiconBlockName,
 } from './lexicon-ui';
+import { isFilterOp } from './transforms';
 
 export const Symbols = {
   // Symbols
@@ -120,17 +121,15 @@ function escapedSlotText(
   return trim ? slotText(block, name) : slotCode(block, name)
 }
 
-/** Number read from a value slot. */
+/** Number read from a value slot, or undefined when it is not numeric. */
 function slotNumber(
   block: Blockly.Block,
   name: string,
-  label: string,
-): number {
+): number | undefined {
   const text = slotText(block, name)
+  if (!text) return undefined
   const value = Number(text)
-  if (!text || !Number.isFinite(value))
-    throw new Error(`${label}必须是数字`)
-  return value
+  return Number.isFinite(value) ? value : undefined
 }
 
 /** Code of a statement input, including its chained siblings. */
@@ -192,39 +191,31 @@ Generator.forBlock['slice'] = (block: Blockly.Block) => {
   const start = slotText(block, 'START')
   const stop = slotText(block, 'STOP')
   const step = slotText(block, 'STEP')
-  if (!body) throw new Error('切片需要一个目标')
-  if (!start && !stop && !step) throw new Error('切片至少需要一个索引')
+  if (!body) return ''
+  if (!start && !stop && !step) return body
   let code = `${body}:${start}`
   if (stop || step) code += `:${stop}`
   if (step) code += `:${step}`
   return translate(code)
 }
 
-Generator.forBlock['font'] = (block: Blockly.Block) => {
+Generator.forBlock['transform'] = (block: Blockly.Block) => {
   const body = statementCode(block, 'BODY')
-  const font = fieldText(block, 'FONT')
-  const charset = escapedSlotText(block, 'CHARSET', false)
+  const op = fieldText(block, 'OP')
   const cname = slotText(block, 'CNAME')
-  if (!body) throw new Error('字体转换需要一个目标')
-  if (!font) throw new Error('请选择字体')
-  let code = `${body}:${font}`
-  if (charset) code += `@${escape(charset)}`
+  if (!body || !op) return ''
+  let code = `${body}:${op}`
+  if (!isFilterOp(op)) {
+    const charset = escapedSlotText(block, 'CHARSET', false)
+    if (charset) code += `@${charset}`
+  }
   if (cname) code += `>${cname}`
   return translate(code)
 }
 
-Generator.forBlock['filter'] = (block: Blockly.Block) => {
-  const body = statementCode(block, 'BODY')
-  const op = fieldText(block, 'OP')
-  const cname = slotText(block, 'CNAME')
-  if (!body) throw new Error('滤镜需要一个目标')
-  if (!op) throw new Error('请选择滤镜')
-  return translate(`${body}:${op}${cname ? `>${cname}` : ''}`)
-}
-
 function aliasCode(block: Blockly.Block): string {
   const alias = fieldText(block, 'ALIAS')
-  if (!alias) throw new Error('请选择或输入别名')
+  if (!alias) return ''
   return translate(alias)
 }
 
@@ -253,10 +244,10 @@ let queryContext: { name: string; meta?: LexiconMeta } | undefined;
 function contextFor(block: Blockly.Block): {
   name: string;
   meta?: LexiconMeta;
-} {
+} | undefined {
   if (queryContext) return queryContext;
   const lexicon = findEnclosingLexicon(block);
-  if (!lexicon) throw new Error('查询条件需要放在词库积木的查询里');
+  if (!lexicon) return undefined;
   const name = lexiconBlockName(lexicon);
   return { name, meta: name ? getCachedLexiconMeta(name) : undefined };
 }
@@ -271,67 +262,96 @@ function withQueryContext<T>(name: string, fn: () => T): T {
   }
 }
 
-/** Generates the DSL for a query tree that lives in a workspace. */
-export function queryBlockToDsl(block: Blockly.Block | null): string {
-  return block ? extractCode(Generator.blockToCode(block)) : '';
+/** One slot inside a branch: a condition/segment and its own flags. */
+export interface QueryBranchItemState {
+  not?: boolean;
+  /** Schema group for this slot (`@组`). */
+  group?: string;
+  state: Blockly.serialization.blocks.State;
 }
 
-function isQueryBlock(block: Blockly.Block): boolean {
-  return !!block.outputConnection?.getCheck()?.includes('TzQuery');
+/** One AND branch; its slots are joined with & and branches are joined with |. */
+export interface QueryBranchState {
+  items: QueryBranchItemState[];
 }
 
-interface QueryPart {
-  code: string;
-  isQuery: boolean;
+/** Code of one slot inside a branch. A group stays with its own slot. */
+function branchItemCode(block: Blockly.Block): { code: string; group?: string } {
+  if (block.type === 'lexicon_group') {
+    return {
+      code: Generator.valueToCode(block, 'ITEM', ORDER_NONE),
+      group: String(block.getFieldValue('GROUP') ?? '') || undefined,
+    };
+  }
+  return { code: extractCode(Generator.blockToCode(block)) };
 }
 
 /**
- * Joins slots into one DSL clause. A `或` expression needs parentheses to be
- * ANDed with anything else, which the fill-in language does not allow, so it
- * has to stay on its own.
+ * Renders one branch slot as a DSL segment. A slot group overrides the item's
+ * own group; the group annotation is applied outside the negation:
+ * `!(=2)@词` is accepted, while `!(=2@词)` is rejected by the fill-in engine.
  */
-function joinQueryParts(parts: readonly QueryPart[]): string {
-  const filled = parts.filter((part) => part.code);
-  if (filled.length > 1 && filled.some((part) => part.isQuery))
-    throw new Error('“或”需要单独作为一个查询，不能和其它条件并列');
-  return filled.map((part) => part.code).join('&');
+function renderItem(
+  block: Blockly.Block,
+  not: boolean,
+  groupOverride?: string,
+): string {
+  const { code, group } = branchItemCode(block);
+  if (!code) return '';
+  const core = not ? `!(${code})` : code;
+  const effective = groupOverride || group;
+  return effective ? `${core}@${effective}` : core;
 }
 
-/** Joins the blocks sitting in a multi-input block's slots into one DSL clause. */
-export function joinQueryBlocks(blocks: readonly Blockly.Block[]): string {
-  return joinQueryParts(
-    blocks.map((block) => ({
-      code: queryBlockToDsl(block),
-      isQuery: isQueryBlock(block),
-    })),
-  );
+function renderBranchState(branch: QueryBranchState): string {
+  const workspace = new Blockly.Workspace();
+  try {
+    const codes: string[] = [];
+    for (const item of branch.items) {
+      const block = Blockly.serialization.blocks.append(item.state, workspace);
+      const code = renderItem(block, !!item.not, item.group);
+      if (code) codes.push(code);
+    }
+    return codes.join('&');
+  } finally {
+    workspace.dispose();
+  }
 }
 
-/** Generates the DSL for serialized query trees (lexicon block extra state). */
-export function queryDslFromStates(
-  states: readonly Blockly.serialization.blocks.State[] | null | undefined,
+/** Generates the DSL for serialized query branches (lexicon block extra state). */
+export function queryDslFromBranches(
+  branches: readonly QueryBranchState[] | null | undefined,
   name: string,
 ): string {
-  if (!states?.length) return '';
+  if (!branches?.length) return '';
   return withQueryContext(name, () => {
-    const parts: QueryPart[] = [];
-    for (const state of states) {
-      const workspace = new Blockly.Workspace();
+    const codes: string[] = [];
+    for (const branch of branches) {
       try {
-        const tree = Blockly.serialization.blocks.append(state, workspace);
-        parts.push({ code: queryBlockToDsl(tree), isQuery: isQueryBlock(tree) });
-      } finally {
-        workspace.dispose();
+        const code = renderBranchState(branch);
+        if (code) codes.push(code);
+      } catch {
+        // A branch that cannot be deserialized contributes nothing.
       }
     }
-    return joinQueryParts(parts);
+    return codes.join('|');
   });
 }
 
 /** Renders one condition block as a DSL segment, validating against meta. */
-function renderCondition(block: Blockly.Block, condition: Condition): string {
-  const { meta } = contextFor(block);
-  return lexiconQuery(segment(condition), meta).build();
+function renderCondition(
+  block: Blockly.Block,
+  build: () => Condition,
+): string {
+  const context = contextFor(block);
+  if (!context) return '';
+  try {
+    return lexiconQuery(segment(build()), context.meta).build();
+  } catch (error) {
+    // Incomplete or invalid conditions simply contribute no segment.
+    if (error instanceof LexiconQueryError) return '';
+    throw error;
+  }
 }
 
 Generator.forBlock['lexicon_group'] = (block: Blockly.Block): [string, number] => {
@@ -339,24 +359,26 @@ Generator.forBlock['lexicon_group'] = (block: Blockly.Block): [string, number] =
   const group = String(block.getFieldValue('GROUP') ?? '');
   if (!item || !group) return [item, 3];
 
-  const { meta } = contextFor(block);
+  const meta = contextFor(block)?.meta;
   const kind = effectiveConditionKind(block.getInputTargetBlock('ITEM'));
+  // The UI already warns about unsupported pairs; don't drop the whole query.
   if (meta && kind && !groupSupportsCondition(meta, group, kind))
-    throw new Error(`组“${group}”不支持${conditionKindLabel(kind)}查询`);
+    return [item, 3];
 
   return [`${item}@${group}`, 3];
 };
 
 /** Shape of the extra state stored on the lexicon block (see lexicon-mutator). */
 type LexiconQueryState = Blockly.Block & {
-  queryStates?: Blockly.serialization.blocks.State[] | null;
+  queryBranches?: QueryBranchState[] | null;
 };
 
 function lexiconCode(block: Blockly.Block): string {
   const name = String(block.getFieldValue('NAME') ?? '');
+  if (!name) return '';
   const field = String(block.getFieldValue('FIELD') ?? '');
-  const states = (block as LexiconQueryState).queryStates ?? [];
-  return renderExpression(name, queryDslFromStates(states, name), field);
+  const branches = (block as LexiconQueryState).queryBranches ?? [];
+  return renderExpression(name, queryDslFromBranches(branches, name), field);
 }
 
 Generator.forBlock['lexicon'] = lexiconCode
@@ -390,22 +412,25 @@ Generator.forBlock['lexicon_or'] = (block: Blockly.Block) =>
   renderLogic(block, '|', 1);
 
 Generator.forBlock['lexicon_pinyin'] = (block: Blockly.Block): [string, number] => [
-  renderCondition(block, lex.pinyin(slotCode(block, 'PATTERN'))),
+  renderCondition(block, () => lex.pinyin(slotCode(block, 'PATTERN'))),
   3,
 ];
 
-Generator.forBlock['lexicon_word_length'] = (
+Generator.forBlock['lexicon_length'] = (
   block: Blockly.Block,
-): [string, number] => [
-  renderCondition(
-    block,
-    lex.wordLength(
-      slotNumber(block, 'LENGTH', '词长'),
-      String(block.getFieldValue('COMPARISON')) as LengthComparison,
+): [string, number] => {
+  const value = slotNumber(block, 'LENGTH');
+  if (value === undefined) return ['', 3];
+  return [
+    renderCondition(block, () =>
+      lex.wordLength(
+        value,
+        String(block.getFieldValue('COMPARISON')) as LengthComparison,
+      ),
     ),
-  ),
-  3,
-];
+    3,
+  ];
+};
 
 Generator.forBlock['lexicon_path'] = (block: Blockly.Block): [string, number] => {
   const segments = slotCode(block, 'PATH')
@@ -414,27 +439,25 @@ Generator.forBlock['lexicon_path'] = (block: Blockly.Block): [string, number] =>
     .filter(Boolean);
   const depth =
     block.getFieldValue('DEPTH') === 'descendants' ? 'descendants' : 'children';
-  return [renderCondition(block, lex.path(segments, depth)), 3];
+  return [renderCondition(block, () => lex.path(segments, depth)), 3];
 }
 
 Generator.forBlock['lexicon_enum'] = (block: Blockly.Block): [string, number] => [
-  renderCondition(block, lex.enum(String(block.getFieldValue('VALUE') ?? ''))),
-  3,
-];
-
-Generator.forBlock['lexicon_index'] = (block: Blockly.Block): [string, number] => [
-  renderCondition(
-    block,
-    lex.index(
-      slotNumber(block, 'START', '索引起点'),
-      slotNumber(block, 'END', '索引终点'),
-    ),
+  renderCondition(block, () =>
+    lex.enum(String(block.getFieldValue('VALUE') ?? '')),
   ),
   3,
 ];
 
+Generator.forBlock['lexicon_index'] = (block: Blockly.Block): [string, number] => {
+  const start = slotNumber(block, 'START');
+  const end = slotNumber(block, 'END');
+  if (start === undefined || end === undefined) return ['', 3];
+  return [renderCondition(block, () => lex.index(start, end)), 3];
+};
+
 Generator.forBlock['lexicon_regex'] = (block: Blockly.Block): [string, number] => [
-  renderCondition(block, lex.regex(slotCode(block, 'SOURCE'))),
+  renderCondition(block, () => lex.regex(slotCode(block, 'SOURCE'))),
   3,
 ];
 
@@ -452,7 +475,7 @@ Generator.forBlock['choice'] = (block: Blockly.Block) => {
 function rangeCode(block: Blockly.Block): string {
   const left = escapedSlotText(block, 'LEFT')
   const right = escapedSlotText(block, 'RIGHT')
-  if (!left || !right) throw new Error('随机数需要左右边界')
+  if (!left || !right) return ''
 
   const fspec = slotText(block, 'FSPEC')
   const fusr = String(block.getFieldValue('FUSR') ?? '')
@@ -482,8 +505,8 @@ Generator.forBlock['format'] = (block: Blockly.Block) => {
   const fspec = slotText(block, 'FSPEC')
   const fusr = String(block.getFieldValue('FUSR') ?? '')
   const cname = slotText(block, 'CNAME')
-  if (!body) throw new Error('格式化需要一个目标')
-  if (!fspec && !fusr) throw new Error('格式化需要格式或字形')
+  if (!body) return ''
+  if (!fspec && !fusr) return body
   let code = `${body}:${fspec}`
   // The glyph separator is only accepted together with a format spec; with no
   // spec the glyph follows the colon directly (`[[3:cn]]`).
@@ -497,7 +520,7 @@ Generator.forBlock['reduce_calc'] = (block: Blockly.Block) => {
   const op = fieldText(block, 'OP')
   const sep = String(block.getFieldValue('SEP') ?? '') || '，'
   const body = block.getInputTargetBlock('BODY')
-  if (!body) throw new Error('归约运算需要至少两段')
+  if (!body) return ''
   return translate(`#${op} ${joinBlock(body, sep)}`)
 }
 
@@ -511,7 +534,7 @@ Generator.forBlock['controls_repeat'] = (block: Blockly.Block) => {
   const times = slotText(block, 'TIMES');
   const body = block.getInputTargetBlock('BODY');
   const lazy = block.getFieldValue('LAZY');
-  if (!times) throw new Error('重复次数不能为空');
+  if (!times) return '';
   const symbol = lazy === 'TRUE' ? Symbols.RepeatLazy : Symbols.Repeat;
   return translate(blockToCode(body) + symbol + times);
 }
@@ -564,16 +587,16 @@ Generator.forBlock['inner_value_set'] = (block: Blockly.Block) => {
   const field = slotText(block, 'FIELD')
   const name = slotText(block, 'NAME')
   const echo = block.getFieldValue('ECHO') === 'TRUE'
-  if (!body) throw new Error('写入内部值需要一个值')
-  if (!field) throw new Error('写入内部值需要作用域')
-  if (!name) throw new Error('写入内部值需要一个名字')
+  if (!body) return ''
+  if (!field) return ''
+  if (!name) return ''
   return translate(`${body}>>${field}:${name}${echo ? '>' : ''}`)
 }
 
 function innerValueGetCode(block: Blockly.Block): string {
   const field = slotText(block, 'FIELD')
   const name = slotText(block, 'NAME')
-  if (!name) throw new Error('读取内部值需要一个名字')
+  if (!name) return ''
   return translate(`<<${field ? `${field}:` : ''}${name}`)
 }
 
@@ -596,6 +619,5 @@ Generator.forBlock['nocensor'] = (block: Blockly.Block) => {
 
 Generator.forBlock['reset'] = (block: Blockly.Block) => {
   const seed = slotText(block, 'SEED')
-  if (seed && !/^[0-9]+$/.test(seed)) throw new Error('重置种子必须是数字')
   return translate('RST' + (seed ? ` ${seed}` : ''))
 }

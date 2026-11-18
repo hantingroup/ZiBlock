@@ -1,11 +1,17 @@
 /**
  * Blockly-facing glue for the lexicon query blocks.
  *
+ * A query is a chain of branches joined with |: the mutator root is the first
+ * branch, and each branch block chained below it is another. Inside a branch,
+ * each slot is one DSL segment, the slots are joined with &, and every slot
+ * has its own 非 checkbox, so `a & !b` is representable. A lexicon_group item
+ * keeps its @group on its own slot.
+ *
  * Connection types (checked by Blockly itself):
- *   Cond:<kind>  one condition block (or a negated one, via lexicon_not)
+ *   Cond:<kind>  one condition block (legacy 非 still outputs this)
  *   TzSegment    a condition bound to a schema group (lexicon_group output)
- *   TzClause     segments joined with &
- *   TzQuery      clauses joined with |
+ *   TzClause     legacy 与 tree (hidden)
+ *   TzQuery      legacy 或 tree (hidden)
  *
  * `lexicon_group` has a left value input for a condition and a right value
  * output. Its input check is narrowed to the condition kinds the selected
@@ -14,7 +20,6 @@
 
 import * as Blockly from "blockly";
 import { ALIAS_ENTRIES, type AliasEntry } from "./aliases";
-import { FONT_NAMES } from "./fonts";
 import {
   conditionsForGroup,
   getCachedLexiconMeta,
@@ -49,7 +54,7 @@ const QUERY_CHECKS = [...CLAUSE_CHECKS, "TzQuery"];
 
 export const CONDITION_KINDS: Record<string, Condition["kind"] | undefined> = {
   lexicon_pinyin: "pinyin",
-  lexicon_word_length: "wordLength",
+  lexicon_length: "wordLength",
   lexicon_path: "path",
   lexicon_enum: "enumValue",
   lexicon_index: "index",
@@ -63,7 +68,7 @@ export const CONDITION_KINDS: Record<string, Condition["kind"] | undefined> = {
  * restored from saved workspaces before their async options arrive, so
  * rejecting unknown values would silently drop the user's selection.
  */
-abstract class FlexibleDropdown extends Blockly.FieldDropdown {
+export abstract class FlexibleDropdown extends Blockly.FieldDropdown {
   #onChange?: (value: string) => void;
 
   constructor(generator: Blockly.MenuGenerator, value: string) {
@@ -188,26 +193,9 @@ export class FieldGroupName extends FlexibleDropdown {
   }
 }
 
-// Font aliases are a fixed 266-name table; the dropdown's search box makes it
-// navigable.
+// Output column: 默认 (the default) or one of the lexicon's columns.
 
-function fontNameOptions(): Blockly.MenuOption[] {
-  return FONT_NAMES.map((name): Blockly.MenuOption => [name, name]);
-}
-
-export class FieldFontName extends FlexibleDropdown {
-  constructor(value = "粗体") {
-    super(fontNameOptions, value);
-  }
-
-  static override fromJson(options: DropdownJson): FieldFontName {
-    return new FieldFontName((options as { text?: string }).text ?? "粗体");
-  }
-}
-
-// Output column: 主词 (the default) or one of the lexicon's columns.
-
-const MAIN_FIELD: Blockly.MenuOption = ["主词", ""];
+const MAIN_FIELD: Blockly.MenuOption = ["默认", ""];
 
 function columnOptions(block: Blockly.Block): Blockly.MenuOption[] {
   const name = String(block.getFieldValue("NAME") ?? "");
@@ -533,6 +521,12 @@ export function findEnclosingLexicon(
     // the lexicon name and stands in for the lexicon block there.
     if (parent.type === "lexicon" || parent.type === "lexicon_mutator_root")
       return parent;
+    // A branch chained below the root is part of the same query; jump to the
+    // top of the chain, which is the root.
+    if (parent.type === "lexicon_branch") {
+      const top = parent.getTopStackBlock();
+      if (top.type === "lexicon_mutator_root") return top;
+    }
   }
   return undefined;
 }
@@ -604,13 +598,24 @@ function schemaGroupOptions(block: Blockly.Block): Blockly.MenuOption[] {
 export function conditionKindLabel(kind: Condition["kind"]): string {
   return {
     pinyin: "拼音",
-    wordLength: "词长",
+    wordLength: "长度",
     path: "路径",
     enumValue: "枚举",
     index: "索引",
     regex: "正则",
     raw: "原始",
   }[kind];
+}
+
+/** Condition block types this lexicon cannot run. */
+export function unsupportedConditionTypes(meta: LexiconMeta): Set<string> {
+  const unsupported = new Set<string>();
+  for (const [type, kind] of Object.entries(CONDITION_KINDS)) {
+    // Index queries are global; they are not bound to a schema group.
+    if (!kind || kind === "index") continue;
+    if (groupsForCondition(meta, kind).length === 0) unsupported.add(type);
+  }
+  return unsupported;
 }
 
 // Validation =================================================================
@@ -742,18 +747,16 @@ function applyLexiconMeta(block: Blockly.Block, meta: LexiconMeta) {
   refreshLexiconChildren(block);
 }
 
-// n-ary AND / OR ============================================================
+// Legacy n-ary AND / OR =====================================================
 //
-// Both blocks expose one value input per operand and always keep one spare
-// empty input at the end, so operands can be dropped in one after another
-// without configuring a count. Their input/output types encode the DSL grammar
-// so Blockly itself refuses unrepresentable trees:
+// These blocks are no longer offered in the gear flyout: a branch block now
+// represents one segment (implicit AND) with a 非 checkbox, and branches are
+// chained vertically as the OR alternatives. The types are kept so older saved
+// query states still deserialize (lexicon-mutator flattens them).
 //   Cond:<kind>  one condition
-//   TzSegment:   condition bound to a group (or a negated one)
-//   TzClause:    segments joined with &
-//   TzQuery:     clauses joined with |
-// A TzQuery can never go into `与` (that would need parentheses the fill-in
-// language does not allow), and only a single condition goes into `非`.
+//   TzSegment:   condition bound to a group
+//   TzClause:    legacy 与 tree
+//   TzQuery:     legacy 或 tree
 
 /** Number of consecutive inputs named `<prefix>0`, `<prefix>1`, … */
 export function inputCount(block: Blockly.Block, prefix: string): number {
@@ -764,13 +767,15 @@ export function inputCount(block: Blockly.Block, prefix: string): number {
 
 /**
  * Keeps at least `minimum` inputs and one empty input after the last connected
- * one. Returns whether the block shape changed.
+ * one. `decorate` runs for each newly added input (e.g. to add a per-slot
+ * checkbox) and receives the slot index.
  */
 export function syncSpareInputs(
   block: Blockly.Block,
   prefix: string,
   checks: string[] | null,
   minimum = 1,
+  decorate?: (input: Blockly.Input, index: number) => void,
 ): boolean {
   let count = 0;
   let lastFilled = -1;
@@ -787,7 +792,8 @@ export function syncSpareInputs(
     changed = true;
   }
   for (let index = count; index < needed; index++) {
-    block.appendValueInput(`${prefix}${index}`).setCheck(checks);
+    const input = block.appendValueInput(`${prefix}${index}`).setCheck(checks);
+    decorate?.(input, index);
     changed = true;
   }
   if (changed && block instanceof Blockly.BlockSvg && block.rendered)
@@ -803,13 +809,15 @@ export function watchSpareInputs(
   prefix: string,
   checks: string[] | null,
   minimum = 1,
+  decorate?: (input: Blockly.Input, index: number) => void,
 ) {
   type Watched = Blockly.Block & { [LISTENER_FLAG]?: boolean };
   const watched = block as Watched;
   if (block.workspace.isFlyout || watched[LISTENER_FLAG]) return;
   watched[LISTENER_FLAG] = true;
   block.workspace.addChangeListener(() => {
-    if (!block.isDisposed()) syncSpareInputs(block, prefix, checks, minimum);
+    if (!block.isDisposed())
+      syncSpareInputs(block, prefix, checks, minimum, decorate);
   });
 }
 
@@ -867,14 +875,17 @@ defineNaryLogic(
   "与",
   "TzClause",
   CLAUSE_CHECKS,
-  "用 & 连接查询；可放条件或其它「与」块（DSL 中 & 的优先级高于 |）",
+  "用 & 连接条件；根节点的多个槽之间用 | 组合",
 );
+
+// Legacy type: the query root is now the only OR. Keep 或 defined so saved
+// query trees that contain one still load, but do not offer it in the flyout.
 defineNaryLogic(
   "lexicon_or",
   "或",
   "TzQuery",
   QUERY_CHECKS,
-  "用 | 连接查询；可放条件、「与」块或其它「或」块",
+  "旧版「或」积木；查询根节点的多个槽已经按「或」组合",
 );
 
 // NOT: keeps the condition kind on its output so a group block can still
@@ -894,12 +905,39 @@ Blockly.Extensions.register("lexicon_not_block", function (this: Blockly.Block) 
   }
 });
 
+// Filter the mutator bubble's flyout before it is created, so unsupported
+// conditions never flash into view and never leave gaps behind.
+function patchMutatorFlyout(block: Blockly.Block) {
+  const icon = block.getIcon(Blockly.icons.MutatorIcon.TYPE) as
+    | {
+        getMiniWorkspaceConfig?: () => any;
+        ziblockFiltered?: boolean;
+      }
+    | undefined;
+  if (!icon?.getMiniWorkspaceConfig || icon.ziblockFiltered) return;
+  icon.ziblockFiltered = true;
+  const original = icon.getMiniWorkspaceConfig.bind(icon);
+  icon.getMiniWorkspaceConfig = () => {
+    const config = original();
+    const name = lexiconBlockName(block);
+    const meta = name ? getCachedLexiconMeta(name) : undefined;
+    const contents = config?.toolbox?.contents;
+    if (!meta || !Array.isArray(contents)) return config;
+    const unsupported = unsupportedConditionTypes(meta);
+    config.toolbox.contents = contents.filter(
+      (item: any) =>
+        String(item?.kind ?? "").toLowerCase() !== "block" ||
+        !unsupported.has(item.type),
+    );
+    return config;
+  };
+}
+
 // Registration ===============================================================
 
 Blockly.fieldRegistry.register("field_lexicon_name", FieldLexiconName);
 Blockly.fieldRegistry.register("field_lexicon_field", FieldLexiconField);
 Blockly.fieldRegistry.register("field_group_name", FieldGroupName);
-Blockly.fieldRegistry.register("field_font_name", FieldFontName);
 Blockly.fieldRegistry.register("field_enum_value", FieldEnumValue);
 Blockly.fieldRegistry.register("field_alias_name", FieldAliasName);
 
@@ -914,6 +952,12 @@ Blockly.Extensions.register("lexicon_block", function (this: Blockly.Block) {
   const outputField = this.getField("FIELD");
   if (outputField instanceof FieldLexiconField)
     outputField.setOptions(() => columnOptions(this));
+  patchMutatorFlyout(this);
+  // The mutator icon is normally installed by jsonInit before extensions run;
+  // retry on changes in case it was not there yet.
+  this.workspace.addChangeListener(() => {
+    if (!this.isDisposed()) patchMutatorFlyout(this);
+  });
   updateLexiconBlock(this);
 });
 

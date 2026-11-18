@@ -10,7 +10,7 @@
  *
  * Query DSL cheat sheet (the part implemented below):
  *   :pattern       拼音   :zhishi, :?.zs
- *   =len           词长   =4, =>4, =<4, =>=4, =<=4
+ *   =len           长度   =4, =>4, =<4, =>=4, =<=4
  *   /path/*        路径   /辽宁省/沈阳市/** (** selects all descendants)
  *   #value#        枚举   #地级市#
  *   #start..end    索引   #1110000..1120000
@@ -402,9 +402,9 @@ function wordLength(
   value: number,
   comparison: LengthComparison = "eq",
 ): Condition {
-  assertInteger(value, "词长");
+  assertInteger(value, "长度");
   if (!(comparison in COMPARISON_SYMBOL))
-    throw new LexiconQueryError(`未知的词长比较符：${comparison}`);
+    throw new LexiconQueryError(`未知的长度比较符：${comparison}`);
   return { kind: "wordLength", value, comparison };
 }
 
@@ -547,7 +547,7 @@ export function groupSupportsCondition(
 
 const CONDITION_LABEL: Record<Condition["kind"], string> = {
   pinyin: "拼音",
-  wordLength: "词长",
+  wordLength: "长度",
   path: "路径",
   enumValue: "枚举",
   index: "索引",

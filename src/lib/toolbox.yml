@@ -18,13 +18,7 @@ contents:
             shadow:
               type: text_multiline
       - kind: block
-        type: font
-        inputs:
-          BODY:
-            shadow:
-              type: text_multiline
-      - kind: block
-        type: filter
+        type: transform
         inputs:
           BODY:
             shadow:

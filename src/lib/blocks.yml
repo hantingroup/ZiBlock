@@ -62,47 +62,22 @@
     <<: *text
     tooltip: 按 Python 切片语义从目标文本中切出一段
 
-- type: font
-  message0: 字体 %1
-  args0: [*statement_body]
-  message1: 字体 %1 字符集 %2
-  args1:
-    - { type: field_font_name, name: FONT, text: 粗体 }
-    - { type: field_input, name: CHARSET }
-  message2: 写名 %1
-  args2:
-    - { type: field_input, name: CNAME }
-  <<:
-    <<: *text
-    tooltip: 把目标文本逐字符替换成指定字体；字符集为空时替换全部字符
-
-- type: filter
+- type: transform
   message0: 滤镜 %1
   args0: [*statement_body]
-  message1: 滤镜 %1
+  message1: 方式 %1
   args1:
-    - type: field_dropdown
-      name: OP
-      options:
-        - [小写 lower, lower]
-        - [大写 upper, upper]
-        - [标题 title, title]
-        - [首字母大写 capitalize, capitalize]
-        - [casefold, casefold]
-        - [交换大小写 swapcase, swapcase]
-        - [去首尾空白 strip, strip]
-        - [去尾部空白 rstrip, rstrip]
-        - [去首部空白 lstrip, lstrip]
-        - [展开制表符 expandtabs, expandtabs]
-        - [麻将 mahjong, mahjong]
-        - [摩斯 morse, morse]
-        - [乱序 shuffle, shuffle]
-  message2: 写名 %1
+    - { type: field_transform_name, name: OP }
+  message2: 字符集 %1
   args2:
+    - { type: field_input, name: CHARSET }
+  message3: 写名 %1
+  args3:
     - { type: field_input, name: CNAME }
   <<:
     <<: *text
-    tooltip: 对目标文本应用字符串滤镜
+    tooltip: 对目标文本应用字体或滤镜；字符集只对字体有效
+    extensions: [transform_charset_visibility]
 
 - type: alias
   message0: 别名 %1
@@ -158,9 +133,11 @@
 
 # Lexicon query blocks =======================================================
 # Conditions output Cond:<kind>; lexicon_group binds one to a schema and
-# outputs TzSegment; lexicon_and / lexicon_or live in lexicon-ui.ts.
-# Connection checks encode the DSL grammar:
-#   ! (Cond:* -> Cond:*) > & (TzClause) > | (TzQuery)
+# outputs TzSegment. A query is a vertical chain of branches joined with |:
+# the mutator root is the first branch, blocks chained below it are more.
+# Inside a branch each slot is one segment joined with & and has its own 非
+# checkbox, so a & !b is representable. The old 与/或/非 block types live in
+# lexicon-ui.ts only so saved queries still deserialize.
 
 - type: lexicon_group
   message0: "组 %1 %2"
@@ -203,8 +180,8 @@
   style: text_blocks
   extensions: [lexicon_condition]
 
-- type: lexicon_word_length
-  message0: "词长 %1 %2"
+- type: lexicon_length
+  message0: "长度 %1 %2"
   args0:
     - type: field_dropdown
       name: COMPARISON

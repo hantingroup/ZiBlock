@@ -154,7 +154,11 @@ function migrateBlock(block: unknown): void {
     fields?: Record<string, unknown>;
     inputs?: Record<string, { block?: unknown; shadow?: unknown } | undefined>;
     next?: { block?: unknown };
-    extraState?: { queries?: unknown[]; query?: unknown };
+    extraState?: {
+      branches?: { items?: unknown[] }[];
+      queries?: unknown[];
+      query?: unknown;
+    };
   };
 
   const slots = state.type ? SHADOW_SLOTS.get(state.type) : undefined;
@@ -180,7 +184,17 @@ function migrateBlock(block: unknown): void {
   }
   migrateBlock(state.next?.block);
 
-  // Lexicon blocks keep their query condition blocks in extra state.
+  // Lexicon blocks keep their query condition blocks in extra state. Branch
+  // items are {state, not} in the current format and bare states in older ones.
+  for (const branch of state.extraState?.branches ?? [])
+    for (const item of branch.items ?? []) {
+      const stored = item as { state?: unknown } | null;
+      migrateBlock(
+        stored && typeof stored === "object" && "state" in stored
+          ? stored.state
+          : item,
+      );
+    }
   for (const query of state.extraState?.queries ?? []) migrateBlock(query);
   migrateBlock(state.extraState?.query);
 }
