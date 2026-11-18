@@ -93,19 +93,6 @@ function setupNaryInputs(block: Blockly.Block, minimum = 1) {
 // allowed to change.
 
 Blockly.common.defineBlocks({
-  join: {
-    init(this: Blockly.Block) {
-      this.jsonInit({
-        message0: "拼接 %1",
-        args0: [{ type: "input_value", name: "ITEM0", check: ["String"] }],
-        output: "String",
-        style: "text_blocks",
-        inputsInline: false,
-        tooltip: "把多段文本接在一起，左边在前；空槽忽略",
-      });
-      setupNaryInputs(this, 2);
-    },
-  },
   choice: {
     init(this: Blockly.Block) {
       this.jsonInit({
@@ -116,6 +103,8 @@ Blockly.common.defineBlocks({
         inputsInline: false,
         tooltip: "在多个候选里随机选一个；每个候选是一个表达式",
       });
+      this.setPreviousStatement(true, "TzText");
+      this.setNextStatement(true, "TzText");
       setupNaryInputs(this);
     },
   },
@@ -157,6 +146,8 @@ Blockly.common.defineBlocks({
         inputsInline: false,
         tooltip: "把各段按同一个分隔符拆开后从左到右做归约运算",
       });
+      this.setPreviousStatement(true, "TzText");
+      this.setNextStatement(true, "TzText");
       setupNaryInputs(this);
     },
   },

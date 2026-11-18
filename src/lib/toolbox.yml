@@ -14,7 +14,6 @@ contents:
       - { kind: block, type: slice }
       - { kind: block, type: transform }
       - { kind: block, type: alias }
-      - { kind: block, type: join }
 
   # Lexicon ====================================================================
   - kind: category

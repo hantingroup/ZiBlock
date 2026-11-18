@@ -138,6 +138,18 @@ function slotNumber(
 // expressions directly, so the stock workspaceToCode (which joins top blocks
 // with newlines) is replaced.
 
+/** Statement chains concatenate: append the next block unless thisOnly. */
+Generator.scrub_ = (
+  block: Blockly.Block,
+  code: string,
+  thisOnly: boolean,
+): string => {
+  const usedAsValue = !!block.outputConnection?.targetConnection;
+  const next = block.getNextBlock();
+  if (!usedAsValue && !thisOnly && next) code += Generator.blockToCode(next);
+  return code;
+};
+
 Generator.workspaceToCode = function (
   this: Blockly.Generator,
   workspace?: Blockly.Workspace,
@@ -221,11 +233,6 @@ function aliasCode(block: Blockly.Block): string {
 Generator.forBlock['alias'] =
 Generator.forBlock['alias_value'] = (block: Blockly.Block): [string, number] => [
   aliasCode(block),
-  ORDER_NONE,
-]
-
-Generator.forBlock['join'] = (block: Blockly.Block): [string, number] => [
-  naryCodes(block).join(''),
   ORDER_NONE,
 ]
 
@@ -687,4 +694,19 @@ Generator.forBlock['nocensor'] = (block: Blockly.Block): [string, number] => {
 Generator.forBlock['reset'] = (block: Blockly.Block): [string, number] => {
   const seed = slotText(block, 'SEED')
   return [translate('RST' + (seed ? ` ${seed}` : '')), ORDER_NONE]
+}
+
+// Dual connections ===========================================================
+//
+// A block whose output is connected is a value; otherwise it is a line in a
+// vertical concatenation chain, so its generator returns plain string code.
+
+for (const [type, generate] of Object.entries(Generator.forBlock)) {
+  const wrapped: typeof generate = (block, generator) => {
+    const result = generate(block, generator);
+    if (Array.isArray(result) && !block.outputConnection?.targetConnection)
+      return result[0];
+    return result;
+  };
+  Generator.forBlock[type] = wrapped;
 }

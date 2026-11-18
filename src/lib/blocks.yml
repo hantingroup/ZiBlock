@@ -17,6 +17,7 @@
       <<: &text
         <<: &statements
           output: "String"
+          extensions: [dual_connection]
         style: text_blocks
       tooltip: "%{BKY_TEXT_TEXT_TOOLTIP}"
       helpUrl: "%{BKY_TEXT_TEXT_HELPURL}"
@@ -81,7 +82,7 @@
   <<:
     <<: *text
     tooltip: 对目标文本应用字体或滤镜；字符集只对字体有效
-    extensions: [transform_charset_visibility]
+    extensions: [transform_charset_visibility, dual_connection]
 
 - type: alias
   message0: 别名 %1
@@ -113,7 +114,7 @@
   <<:
     <<: *text
     tooltip: 查询按行「与」组合；「或者」分隔不同的「或」分支
-    extensions: [lexicon_block]
+    extensions: [lexicon_block, dual_connection]
 
 - type: lexicon_value
   message0: "词库 %1 输出 %2"
@@ -124,7 +125,7 @@
   args1: [*lexicon_query]
   output: "String"
   style: text_blocks
-  extensions: [lexicon_block]
+  extensions: [lexicon_block, dual_connection]
   tooltip: 词库查询结果；可作为值插入其它空槽
 
 # Lexicon query blocks =======================================================
@@ -378,7 +379,7 @@
     <<: &variable_blocks
       <<: *statements
       style: variable_blocks
-      extensions: [contextMenu_variableSetterGetter]
+      extensions: [dual_connection, contextMenu_variableSetterGetter]
     tooltip: "%{BKY_VARIABLES_GET_TOOLTIP}"
     helpUrl: "%{BKY_VARIABLES_GET_HELPURL}"
 
