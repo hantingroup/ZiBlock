@@ -251,11 +251,11 @@
 - type: range
   message0: 随机数 %1 - %2
   args0: &range_bounds
-    - { type: field_input, name: LEFT, text: "1" }
-    - { type: field_input, name: RIGHT, text: "9" }
+    - { type: field_input, name: LEFT, text: "1", external: true }
+    - { type: field_input, name: RIGHT, text: "9", external: true }
   message1: 格式 %1 字形 %2
   args1: &range_format
-    - { type: field_input, name: FSPEC }
+    - { type: field_input, name: FSPEC, external: true }
     - type: field_dropdown
       name: FUSR
       options:
@@ -286,8 +286,8 @@
         - [对数正态, log]
         - [逻辑, logistic]
         - [拉普拉斯, l]
-    - { type: field_input, name: RNAME }
-    - { type: field_input, name: CNAME }
+    - { type: field_input, name: RNAME, external: true }
+    - { type: field_input, name: CNAME, external: true }
   message3: 多选分隔 %1 数量 %2
   args3: &range_count
     - type: field_dropdown
@@ -297,7 +297,7 @@
         - [逗号 ，, ，]
         - [顿号 、, 、]
         - [空格, " "]
-    - { type: field_input, name: COUNT }
+    - { type: field_input, name: COUNT, external: true }
   <<:
     <<: *math_blocks
     tooltip: 在左右边界之间取随机数；输出会贴合两端边界的字形与格式
@@ -320,7 +320,7 @@
   args0: [*statement_body]
   message1: 格式 %1 字形 %2
   args1:
-    - { type: field_input, name: FSPEC, text: ".2f" }
+    - { type: field_input, name: FSPEC, text: ".2f", external: true }
     - type: field_dropdown
       name: FUSR
       options:
@@ -335,7 +335,7 @@
         - [字符 u, u]
   message2: 写名 %1
   args2:
-    - { type: field_input, name: CNAME }
+    - { type: field_input, name: CNAME, external: true }
   <<:
     <<: *math_blocks
     tooltip: 把目标值按格式与字形重新渲染（不随机）

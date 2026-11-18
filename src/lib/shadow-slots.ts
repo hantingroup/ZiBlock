@@ -72,6 +72,17 @@ export function prepareShadowSlots(
           return plain;
         }
 
+        // `external` turns the field into a plain value input with no default
+        // shadow, so its value must come from a connected block.
+        if (arg.external) {
+          const input: Record<string, unknown> = {
+            type: "input_value",
+            name: arg.name,
+          };
+          if (arg.check) input.check = arg.check;
+          return input;
+        }
+
         slots.push({
           input: arg.name,
           shadowType: kind.shadowType,
