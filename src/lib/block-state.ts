@@ -10,20 +10,15 @@
 import * as Blockly from "blockly";
 import Generator from "./generator";
 
-/** Query-editor blocks are line fragments, not standalone expressions. */
 const DISABLED_REASON = "ziblock-no-code";
 
-const QUERY_TYPES = new Set([
-  "lexicon_or",
-  "lexicon_not",
-  "lexicon_group",
-  "lexicon_pinyin",
-  "lexicon_length",
-  "lexicon_path",
-  "lexicon_enum",
-  "lexicon_index",
-  "lexicon_regex",
-]);
+/**
+ * 或者 only splits the query into OR branches; it never emits code of its own,
+ * even when the query is complete. Every other query block (conditions and the
+ * 取反/组 wrappers) does emit code once filled in, so an empty one greys out
+ * like any other incomplete block.
+ */
+const QUERY_SEPARATORS = new Set(["lexicon_or"]);
 
 /** Literal shadows render as editable fields, not as standalone blocks. */
 const SHADOW_TYPES = new Set([
@@ -49,15 +44,24 @@ function blockCode(block: Blockly.Block): string {
   }
 }
 
-export function updateBlockEffectiveness(block: Blockly.Block) {
-  if (QUERY_TYPES.has(block.type) || SHADOW_TYPES.has(block.type)) return;
+export function updateBlockEffectiveness(block: Blockly.Block): boolean {
+  if (QUERY_SEPARATORS.has(block.type) || SHADOW_TYPES.has(block.type))
+    return false;
 
   const noCode = blockCode(block) === "";
-  if (block.hasDisabledReason(DISABLED_REASON) !== noCode)
-    block.setDisabledReason(noCode, DISABLED_REASON);
+  if (block.hasDisabledReason(DISABLED_REASON) === noCode) return false;
+  block.setDisabledReason(noCode, DISABLED_REASON);
+  return true;
 }
 
 export function refreshBlockEffectiveness(workspace: Blockly.Workspace) {
-  for (const block of workspace.getAllBlocks(false))
-    updateBlockEffectiveness(block);
+  const blocks = workspace.getAllBlocks(false);
+  // A wrapper's code depends on whether its children still generate code, and
+  // children are visited after their parent; repeat until the state settles.
+  for (let pass = 0; pass <= blocks.length; pass++) {
+    let changed = false;
+    for (const block of blocks)
+      changed = updateBlockEffectiveness(block) || changed;
+    if (!changed) break;
+  }
 }
