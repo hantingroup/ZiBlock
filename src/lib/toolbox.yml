@@ -14,12 +14,6 @@ contents:
       - { kind: block, type: slice }
       - { kind: block, type: transform }
       - { kind: block, type: alias }
-
-  # Lexicon ====================================================================
-  - kind: category
-    name: 词库
-    colour: 140
-    contents:
       # Query conditions live in the lexicon block's gear palette.
       - { kind: block, type: lexicon }
 
