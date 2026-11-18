@@ -111,10 +111,13 @@
     - { type: field_lexicon_field, name: FIELD }
   message1: "查询 %1"
   args1:
-    - { type: field_label, name: SUMMARY, text: "无" }
+    - &lexicon_query
+      type: input_statement
+      name: QUERY
+      check: "TzQuery"
   <<:
     <<: *text
-    mutator: lexicon_mutator
+    tooltip: 查询按行「与」组合；「或者」分隔不同的「或」分支
     extensions: [lexicon_block]
 
 - type: lexicon_value
@@ -123,62 +126,59 @@
     - { type: field_lexicon_name, name: NAME }
     - { type: field_lexicon_field, name: FIELD }
   message1: "查询 %1"
-  args1:
-    - { type: field_label, name: SUMMARY, text: "无" }
+  args1: [*lexicon_query]
   output: "String"
   style: text_blocks
-  mutator: lexicon_mutator
   extensions: [lexicon_block]
   tooltip: 词库查询结果；可作为值插入其它空槽
 
 # Lexicon query blocks =======================================================
-# Conditions output Cond:<kind>; lexicon_group binds one to a schema and
-# outputs TzSegment. A query is a vertical chain of branches joined with |:
-# the mutator root is the first branch, blocks chained below it are more.
-# Inside a branch each slot is one segment joined with & and has its own 非
-# checkbox, so a & !b is representable. The old 与/或/非 block types live in
-# lexicon-ui.ts only so saved queries still deserialize.
+# The query is a C-shaped statement input. Each condition line is one segment;
+# consecutive lines are joined with & (AND). A bare 或者 separator starts a new
+# | (OR) branch, so the stack maps directly onto the DSL grammar without
+# parentheses. 非 and 组 are C-shaped wrappers around a query expression;
+# 非 is expanded with De Morgan when it wraps several conditions or branches.
+
+- type: lexicon_or
+  message0: "或者"
+  previousStatement: "TzQuery"
+  nextStatement: "TzQuery"
+  style: text_blocks
+  tooltip: 分隔两个「或」分支；上下两侧各自按「与」组合，不接任何积木
+
+- type: lexicon_not
+  message0: "非 %1"
+  args0:
+    - type: input_statement
+      name: ITEM
+      check: "TzQuery"
+  previousStatement: "TzQuery"
+  nextStatement: "TzQuery"
+  style: text_blocks
+  extensions: [lexicon_not_block]
+  tooltip: 包住查询条件并整体取反；多个「与」条件展开为 !a|!b，多个「或」分支展开为 !a&!b
 
 - type: lexicon_group
   message0: "组 %1 %2"
   args0:
     - { type: field_group_name, name: GROUP }
-    - type: input_value
+    - type: input_statement
       name: ITEM
-      check:
-        - Cond:pinyin
-        - Cond:wordLength
-        - Cond:path
-        - Cond:enumValue
-        - Cond:index
-        - Cond:regex
-  output: "TzSegment"
+      check: "TzQuery"
+  previousStatement: "TzQuery"
+  nextStatement: "TzQuery"
   style: text_blocks
   extensions: [lexicon_group_block]
-
-- type: lexicon_not
-  message0: "非 %1"
-  args0:
-    - type: input_value
-      name: ITEM
-      check:
-        - Cond:pinyin
-        - Cond:wordLength
-        - Cond:path
-        - Cond:enumValue
-        - Cond:index
-        - Cond:regex
-        - TzSegment
-  output: "Cond:unknown"
-  style: text_blocks
-  extensions: [lexicon_not_block]
+  tooltip: 给包住的每个条件加 @组；「与」行和「或」分支里的条件都会加组
 
 - type: lexicon_pinyin
   message0: "拼音 %1"
   args0:
     - { type: field_input, name: PATTERN }
-  output: "Cond:pinyin"
-  style: text_blocks
+  <<: &condition_statement
+    previousStatement: "TzQuery"
+    nextStatement: "TzQuery"
+    style: text_blocks
   extensions: [lexicon_condition]
 
 - type: lexicon_length
@@ -193,8 +193,7 @@
         - ["不小于", "gte"]
         - ["不大于", "lte"]
     - { type: field_number, name: LENGTH, value: 2, min: 0, precision: 1 }
-  output: "Cond:wordLength"
-  style: text_blocks
+  <<: *condition_statement
   extensions: [lexicon_condition]
 
 - type: lexicon_path
@@ -206,16 +205,14 @@
       options:
         - ["直接子节点", "children"]
         - ["所有后代", "descendants"]
-  output: "Cond:path"
-  style: text_blocks
+  <<: *condition_statement
   extensions: [lexicon_condition]
 
 - type: lexicon_enum
   message0: "枚举 %1"
   args0:
     - { type: field_enum_value, name: VALUE }
-  output: "Cond:enumValue"
-  style: text_blocks
+  <<: *condition_statement
   extensions: [lexicon_condition, lexicon_enum_block]
 
 - type: lexicon_index
@@ -223,16 +220,14 @@
   args0:
     - { type: field_number, name: START, value: 0, min: 0, precision: 1 }
     - { type: field_number, name: END, value: 100, min: 1, precision: 1 }
-  output: "Cond:index"
-  style: text_blocks
+  <<: *condition_statement
   extensions: [lexicon_condition]
 
 - type: lexicon_regex
   message0: "正则 %1"
   args0:
     - { type: field_input, name: SOURCE }
-  output: "Cond:regex"
-  style: text_blocks
+  <<: *condition_statement
   extensions: [lexicon_condition]
 
 # Math ========================================================================

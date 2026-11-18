@@ -69,7 +69,14 @@ export function prepareShadowSlots(
           shadowType: kind.shadowType,
           text: String(arg.text ?? arg.value ?? ""),
         });
-        return { type: "input_value", name: arg.name };
+        // The literal text now lives in the shadow block; only the connection
+        // check still belongs on the input.
+        const input: Record<string, unknown> = {
+          type: "input_value",
+          name: arg.name,
+        };
+        if (arg.check) input.check = arg.check;
+        return input;
       });
     }
 
@@ -132,9 +139,9 @@ export function registerShadowSlotExtension() {
 
 // Legacy workspaces ==========================================================
 //
-// Workspaces saved before this change store the literal under `fields`. The
-// dev sessionStorage restore moves it into the input's shadow so a reloaded
-// canvas keeps its text.
+// Workspaces saved before the value-slot change store the literal under
+// `fields`. The dev sessionStorage restore moves it into the input's shadow so
+// a reloaded canvas keeps its text.
 
 export function migrateWorkspaceState(state: unknown): void {
   if (!state || typeof state !== "object") return;
@@ -154,11 +161,6 @@ function migrateBlock(block: unknown): void {
     fields?: Record<string, unknown>;
     inputs?: Record<string, { block?: unknown; shadow?: unknown } | undefined>;
     next?: { block?: unknown };
-    extraState?: {
-      branches?: { items?: unknown[] }[];
-      queries?: unknown[];
-      query?: unknown;
-    };
   };
 
   const slots = state.type ? SHADOW_SLOTS.get(state.type) : undefined;
@@ -183,18 +185,4 @@ function migrateBlock(block: unknown): void {
     migrateBlock(connection?.shadow);
   }
   migrateBlock(state.next?.block);
-
-  // Lexicon blocks keep their query condition blocks in extra state. Branch
-  // items are {state, not} in the current format and bare states in older ones.
-  for (const branch of state.extraState?.branches ?? [])
-    for (const item of branch.items ?? []) {
-      const stored = item as { state?: unknown } | null;
-      migrateBlock(
-        stored && typeof stored === "object" && "state" in stored
-          ? stored.state
-          : item,
-      );
-    }
-  for (const query of state.extraState?.queries ?? []) migrateBlock(query);
-  migrateBlock(state.extraState?.query);
 }

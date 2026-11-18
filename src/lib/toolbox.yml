@@ -29,6 +29,21 @@ contents:
       - { kind: block, type: lexicon }
       - { kind: block, type: lexicon_value }
 
+  # Lexicon query =============================================================
+  - kind: category
+    name: 词库查询
+    colour: "%{BKY_TEXTS_HUE}"
+    contents:
+      - { kind: block, type: lexicon_length }
+      - { kind: block, type: lexicon_pinyin }
+      - { kind: block, type: lexicon_regex }
+      - { kind: block, type: lexicon_index }
+      - { kind: block, type: lexicon_enum }
+      - { kind: block, type: lexicon_path }
+      - { kind: block, type: lexicon_not }
+      - { kind: block, type: lexicon_group }
+      - { kind: block, type: lexicon_or }
+
   # Math ======================================================================
   - kind: category
     name: 数学
