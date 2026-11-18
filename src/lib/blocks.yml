@@ -52,13 +52,13 @@
     helpUrl: "https://tianzi.hongbot.icu/howto#StrFilter"
     extensions: [transform_charset_visibility, dual_connection]
 
-- type: alias
-  message0: 别名 %1
+- type: macro
+  message0: 宏 %1
   args0:
-    - { type: field_alias_name, name: ALIAS }
+    - { type: field_macro_name, name: MACRO }
   <<:
     <<: *text
-    tooltip: 展开别名表里的别名；也可以直接输入
+    tooltip: 展开宏表里的宏；也可以直接输入
     helpUrl: "https://tianzi.hongbot.icu/howto#语言基础"
 
 - type: lexicon

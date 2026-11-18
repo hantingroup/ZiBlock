@@ -240,6 +240,13 @@ function migrateBlock(block: unknown): void {
     next?: { block?: unknown };
   };
 
+  // The 别名 block is now 宏 (macro); saved workspaces still use the old names.
+  if (state.type === "alias") state.type = "macro";
+  if (state.fields?.ALIAS !== undefined) {
+    state.fields.MACRO ??= state.fields.ALIAS;
+    delete state.fields.ALIAS;
+  }
+
   const slots = state.type ? SHADOW_SLOTS.get(state.type) : undefined;
   if (slots && state.fields) {
     for (const slot of slots) {

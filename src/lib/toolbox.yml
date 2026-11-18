@@ -9,7 +9,7 @@ contents:
       - { kind: block, type: text_multiline }
       - { kind: block, type: slice }
       - { kind: block, type: transform }
-      - { kind: block, type: alias }
+      - { kind: block, type: macro }
       # Query conditions live in the lexicon block's gear palette.
       - { kind: block, type: lexicon }
 

@@ -218,14 +218,14 @@ Generator.forBlock['transform'] = (block: Blockly.Block): [string, number] => {
   return [translate(code), ORDER_NONE]
 }
 
-function aliasCode(block: Blockly.Block): string {
-  const alias = fieldText(block, 'ALIAS')
-  if (!alias) return ''
-  return translate(alias)
+function macroCode(block: Blockly.Block): string {
+  const macro = fieldText(block, 'MACRO')
+  if (!macro) return ''
+  return translate(macro)
 }
 
-Generator.forBlock['alias'] = (block: Blockly.Block): [string, number] => [
-  aliasCode(block),
+Generator.forBlock['macro'] = (block: Blockly.Block): [string, number] => [
+  macroCode(block),
   ORDER_NONE,
 ]
 

@@ -5,6 +5,7 @@ import "./dual-connections";
 import "./lexicon-ui";
 import "./nary-inputs";
 import "./transforms";
+import { loadMacroEntries } from "./macros";
 import blockArray from "./blocks.yml";
 import {
   defineLiteralBlocks,
@@ -17,3 +18,6 @@ registerFieldMultilineInput();
 defineLiteralBlocks();
 registerShadowSlotExtension();
 Blockly.defineBlocksWithJsonArray(prepareShadowSlots(blockArray));
+
+// Warm the macro table so the picker usually has its options on first click.
+void loadMacroEntries();
