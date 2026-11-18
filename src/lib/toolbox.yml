@@ -20,16 +20,8 @@ contents:
     name: 词库
     colour: 140
     contents:
+      # Query conditions live in the lexicon block's gear palette.
       - { kind: block, type: lexicon }
-      - { kind: block, type: lexicon_length }
-      - { kind: block, type: lexicon_pinyin }
-      - { kind: block, type: lexicon_regex }
-      - { kind: block, type: lexicon_index }
-      - { kind: block, type: lexicon_enum }
-      - { kind: block, type: lexicon_path }
-      - { kind: block, type: lexicon_not }
-      - { kind: block, type: lexicon_group }
-      - { kind: block, type: lexicon_or }
 
   # Math ======================================================================
   - kind: category

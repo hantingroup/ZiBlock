@@ -10,6 +10,7 @@
 
 import * as Blockly from "blockly";
 import { ALIAS_ENTRIES, type AliasEntry } from "./aliases";
+import { addConditionPalette } from "./lexicon-palette";
 import {
   conditionsForGroup,
   getCachedLexiconMeta,
@@ -769,11 +770,15 @@ Blockly.Extensions.register("lexicon_block", function (this: Blockly.Block) {
     outputField.setOptions(() => columnOptions(this));
   // Conditions only know their lexicon once they are connected, so keep their
   // warnings in sync with the tree.
-  if (!this.workspace.isFlyout)
+  if (!this.workspace.isFlyout) {
     this.workspace.addChangeListener((event) => {
       if (event.isUiEvent || this.isDisposed()) return;
       refreshLexiconChildren(this);
     });
+    // The gear opens a flyout of query blocks beside the block, so they can
+    // be dragged straight into the query slot.
+    if (this instanceof Blockly.BlockSvg) addConditionPalette(this);
+  }
   updateLexiconBlock(this);
 });
 

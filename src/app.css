@@ -38,3 +38,15 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Lexicon gear palette: a popup flyout styled like a mutator bubble. */
+.ziblock-condition-flyout {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+}
+
+.ziblock-condition-flyout .blocklyFlyoutBackground {
+  fill: #fff;
+  fill-opacity: 1;
+  stroke: #ddd;
+  stroke-width: 1;
+}
