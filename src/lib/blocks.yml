@@ -20,7 +20,7 @@
           extensions: [dual_connection]
         style: text_blocks
       tooltip: "%{BKY_TEXT_TEXT_TOOLTIP}"
-      helpUrl: "%{BKY_TEXT_TEXT_HELPURL}"
+      helpUrl: "https://tianzi.hongbot.icu/howto#混排"
 
 - type: slice
   message0: 切片 %1
@@ -35,6 +35,7 @@
   <<:
     <<: *text
     tooltip: 按 Python 切片语义从目标文本中切出一段
+    helpUrl: "https://tianzi.hongbot.icu/howto#Slice"
 
 - type: transform
   inputsInline: false
@@ -48,6 +49,7 @@
   <<:
     <<: *text
     tooltip: 对目标文本应用字体或滤镜；字符集只对字体有效
+    helpUrl: "https://tianzi.hongbot.icu/howto#StrFilter"
     extensions: [transform_charset_visibility, dual_connection]
 
 - type: alias
@@ -57,6 +59,7 @@
   <<:
     <<: *text
     tooltip: 展开别名表里的别名；也可以直接输入
+    helpUrl: "https://tianzi.hongbot.icu/howto#语言基础"
 
 - type: lexicon
   message0: "词库 %1 输出 %2"
@@ -73,6 +76,7 @@
     <<: *text
     style: lexicon_blocks
     tooltip: 查询按行「与」组合；「或者」分隔不同的「或」分支
+    helpUrl: "https://tianzi.hongbot.icu/howto#词库"
     extensions: [lexicon_block, dual_connection]
 
 # Lexicon query blocks =======================================================
@@ -88,6 +92,7 @@
   nextStatement: "TzQuery"
   style: lexicon_blocks
   tooltip: 分隔两个「或」分支；上下两侧各自按「与」组合，不接任何积木
+  helpUrl: "https://tianzi.hongbot.icu/howto#常用扩展语法词库"
 
 - type: lexicon_not
   message0: "取反 %1"
@@ -100,6 +105,7 @@
   style: lexicon_blocks
   extensions: [lexicon_not_block]
   tooltip: 包住查询条件并整体取反；多个「与」条件展开为 !a|!b，多个「或」分支展开为 !a&!b
+  helpUrl: "https://tianzi.hongbot.icu/howto#常用扩展语法词库"
 
 - type: lexicon_group
   message0: "组 %1 %2"
@@ -113,6 +119,7 @@
   style: lexicon_blocks
   extensions: [lexicon_group_block]
   tooltip: 给包住的每个条件加 @组；「与」行和「或」分支里的条件都会加组
+  helpUrl: "https://tianzi.hongbot.icu/howto#常用扩展语法词库"
 
 - type: lexicon_pinyin
   message0: "拼音 %1"
@@ -123,6 +130,7 @@
     nextStatement: "TzQuery"
     style: lexicon_blocks
   extensions: [lexicon_condition]
+  helpUrl: "https://tianzi.hongbot.icu/howto#拼音"
 
 - type: lexicon_length
   message0: "长度 %1 %2"
@@ -138,6 +146,7 @@
     - { type: field_number, name: LENGTH, value: 2, min: 0, precision: 1 }
   <<: *condition_statement
   extensions: [lexicon_condition]
+  helpUrl: "https://tianzi.hongbot.icu/howto#词长"
 
 - type: lexicon_path
   message0: "路径 %1 %2"
@@ -150,6 +159,7 @@
         - ["所有后代", "descendants"]
   <<: *condition_statement
   extensions: [lexicon_condition]
+  helpUrl: "https://tianzi.hongbot.icu/howto#路径"
 
 - type: lexicon_enum
   message0: "枚举 %1"
@@ -157,6 +167,7 @@
     - { type: field_enum_value, name: VALUE }
   <<: *condition_statement
   extensions: [lexicon_condition, lexicon_enum_block]
+  helpUrl: "https://tianzi.hongbot.icu/howto#枚举"
 
 - type: lexicon_index
   message0: "索引 %1 到 %2"
@@ -165,6 +176,7 @@
     - { type: field_number, name: END, value: 100, min: 1, precision: 1 }
   <<: *condition_statement
   extensions: [lexicon_condition]
+  helpUrl: "https://tianzi.hongbot.icu/howto#索引"
 
 - type: lexicon_regex
   message0: "正则 %1"
@@ -172,6 +184,7 @@
     - { type: field_input, name: SOURCE }
   <<: *condition_statement
   extensions: [lexicon_condition]
+  helpUrl: "https://tianzi.hongbot.icu/howto#正则"
 
 # Math ========================================================================
 
@@ -184,7 +197,7 @@
         <<: *statements
         style: math_blocks
       tooltip: "%{BKY_MATH_NUMBER_TOOLTIP}"
-      helpUrl: "%{BKY_MATH_NUMBER_HELPURL}"
+      helpUrl: "https://tianzi.hongbot.icu/howto#ImmediateNumbers"
 
 - type: calculate
   message0: = %1
@@ -194,7 +207,7 @@
   <<:
     <<: *math_blocks
     tooltip: "%{BKY_MATH_CALCULATE_TOOLTIP}"
-    helpUrl: "%{BKY_MATH_CALCULATE_HELPURL}"
+    helpUrl: "https://tianzi.hongbot.icu/howto#Calculate"
 
 - type: range
   inputsInline: false
@@ -247,6 +260,7 @@
   <<:
     <<: *math_blocks
     tooltip: 在左右边界之间取随机数；输出会贴合两端边界的字形与格式
+    helpUrl: "https://tianzi.hongbot.icu/howto#Range"
 
 - type: format
   inputsInline: false
@@ -277,6 +291,7 @@
   <<:
     <<: *math_blocks
     tooltip: 把目标值按格式与字形重新渲染（不随机）
+    helpUrl: "https://tianzi.hongbot.icu/howto#就地格式化"
 
 # Controls ====================================================================
 
@@ -305,7 +320,7 @@
         style: loop_blocks
         <<: *statements
       tooltip: "%{BKY_CONTROLS_REPEAT_TOOLTIP}"
-      helpUrl: "%{BKY_CONTROLS_REPEAT_HELPURL}"
+      helpUrl: "https://tianzi.hongbot.icu/howto#重复small--下small"
 
 # Variables ===================================================================
 
@@ -322,7 +337,7 @@
       style: variable_blocks
       extensions: [dual_connection, contextMenu_variableSetterGetter]
     tooltip: "%{BKY_VARIABLES_GET_TOOLTIP}"
-    helpUrl: "%{BKY_VARIABLES_GET_HELPURL}"
+    helpUrl: "https://tianzi.hongbot.icu/howto#引用-reference"
 
 - type: variables_set
   message0: 设置 %1
@@ -337,7 +352,7 @@
   <<: &variables_set
     <<: *variable_blocks
     tooltip: "%{BKY_VARIABLES_SET_TOOLTIP}"
-    helpUrl: "%{BKY_VARIABLES_SET_HELPURL}"
+    helpUrl: "https://tianzi.hongbot.icu/howto#赋值"
 
 - type: variables_set_block
   message0: 设置 %1
@@ -360,11 +375,13 @@
   <<: &variable_dynamic_blocks
     <<: *variable_blocks
     style: variable_blocks
+  helpUrl: "https://tianzi.hongbot.icu/howto#LingerRef"
 
 - type: variables_set_linger
   message0: 导出 %1 到 %2
   args0: [*variable_var, *input_scope]
   <<: *variable_dynamic_blocks
+  helpUrl: "https://tianzi.hongbot.icu/howto#LingerAssign"
 
 - type: inner_value_set
   message0: 写入内部值 %1 名 %2
@@ -379,6 +396,7 @@
     <<: *statements
     style: variable_blocks
     tooltip: 把值写进内部值表（作用域通常是 Range / Choice / Lex）
+    helpUrl: "https://tianzi.hongbot.icu/howto#InnerValAssign"
 
 - type: inner_value_get
   message0: 读取内部值 %1 名 %2
@@ -389,6 +407,7 @@
     <<: *statements
     style: variable_blocks
     tooltip: 读取内部值；作用域留空时按翻译器顺序查找
+    helpUrl: "https://tianzi.hongbot.icu/howto#InnerValRef"
 
 # Settings ====================================================================
 
@@ -423,6 +442,7 @@
     <<: *statements
     style: setting_blocks
     tooltip: 设置本次填字的配置项，输出为空
+    helpUrl: "https://tianzi.hongbot.icu/howto#Config"
 
 - type: nocensor
   message0: 关闭屏蔽 %1
@@ -432,6 +452,7 @@
     <<: *statements
     style: setting_blocks
     tooltip: 用 6 位验证码关闭本次填字的屏蔽词；不填会提示当前验证码
+    helpUrl: "https://tianzi.hongbot.icu/howto#Nocensor"
 
 - type: reset
   message0: 重置 %1
@@ -441,3 +462,4 @@
     <<: *statements
     style: setting_blocks
     tooltip: 清空缓存与变量并重置随机；种子应放在最前面
+    helpUrl: "https://tianzi.hongbot.icu/howto#Reset"

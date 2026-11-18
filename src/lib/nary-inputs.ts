@@ -129,6 +129,7 @@ Blockly.common.defineBlocks({
         style: "math_blocks",
         inputsInline: false,
         tooltip: "在多个候选里随机选一个；每个候选是一个表达式",
+        helpUrl: "https://tianzi.hongbot.icu/howto#选择",
       });
       this.setPreviousStatement(true, "TzText");
       this.setNextStatement(true, "TzText");
@@ -148,6 +149,7 @@ Blockly.common.defineBlocks({
         style: "math_blocks",
         inputsInline: false,
         tooltip: "把各段按同一个分隔符拆开后从左到右做归约运算",
+        helpUrl: "https://tianzi.hongbot.icu/howto#ReduceCalc",
       });
       // The operator and separator are editable literals, not fixed choices,
       // so an expression can be dropped onto either slot.
