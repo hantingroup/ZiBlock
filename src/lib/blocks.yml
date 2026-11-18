@@ -105,11 +105,11 @@
   tooltip: 把两段文本接在一起，左边在前；可以嵌套拼接更多段
 
 - type: lexicon
-  message0: "词典 %1 输出 %2"
+  message0: "词典 %1 输出 %2 查询"
   args0:
     - { type: field_lexicon_name, name: NAME }
     - { type: field_lexicon_field, name: FIELD }
-  message1: "查询 %1"
+  message1: "%1"
   args1:
     - &lexicon_query
       type: input_statement
