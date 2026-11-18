@@ -30,6 +30,7 @@ const SHADOW_TYPES = new Set([
   "literal_text",
   "literal_multiline",
   "literal_number",
+  "literal_dropdown",
 ]);
 
 /**

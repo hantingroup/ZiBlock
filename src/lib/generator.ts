@@ -176,7 +176,8 @@ Generator.workspaceToCode = function (
 
 Generator.forBlock['literal_text'] =
 Generator.forBlock['literal_multiline'] =
-Generator.forBlock['literal_number'] = (block: Blockly.Block): [string, number] => [
+Generator.forBlock['literal_number'] =
+Generator.forBlock['literal_dropdown'] = (block: Blockly.Block): [string, number] => [
   String(block.getFieldValue('TEXT') ?? ''),
   ORDER_NONE,
 ]
@@ -542,8 +543,8 @@ function rangeCode(block: Blockly.Block): string {
   if (!left || !right) return ''
 
   const fspec = slotText(block, 'FSPEC')
-  const fusr = String(block.getFieldValue('FUSR') ?? '')
-  const dist = String(block.getFieldValue('DIST') ?? '')
+  const fusr = slotCode(block, 'FUSR')
+  const dist = slotCode(block, 'DIST')
   const rname = slotText(block, 'RNAME')
   const cname = slotText(block, 'CNAME')
   const count = slotText(block, 'COUNT')
@@ -554,7 +555,8 @@ function rangeCode(block: Blockly.Block): string {
   if (dist) code += `@${dist}`
   if (rname) code += `<${rname}`
   if (cname) code += `>${cname}`
-  if (count) code += `${block.getFieldValue('CSEP') ?? ''}=${count}`
+  // The separator may be a single space, so it is read untrimmed.
+  if (count) code += `${slotCode(block, 'CSEP')}=${count}`
   return translate(code)
 }
 
@@ -566,7 +568,7 @@ Generator.forBlock['range_value'] = (
 Generator.forBlock['format'] = (block: Blockly.Block): [string, number] => {
   const body = slotCode(block, 'BODY')
   const fspec = slotText(block, 'FSPEC')
-  const fusr = String(block.getFieldValue('FUSR') ?? '')
+  const fusr = slotCode(block, 'FUSR')
   const cname = slotText(block, 'CNAME')
   if (!body) return ['', ORDER_NONE]
   if (!fspec && !fusr) return [body, ORDER_NONE]
@@ -580,7 +582,7 @@ Generator.forBlock['format'] = (block: Blockly.Block): [string, number] => {
 }
 
 Generator.forBlock['reduce_calc'] = (block: Blockly.Block): [string, number] => {
-  const op = fieldText(block, 'OP')
+  const op = slotCode(block, 'OP')
   const sep = slotText(block, 'SEP') || '，'
   const items = naryCodes(block)
   if (!op || !items.length) return ['', ORDER_NONE]

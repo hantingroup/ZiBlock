@@ -8,8 +8,35 @@
  */
 
 import * as Blockly from "blockly";
+import { SHADOW_SLOTS, shadowState } from "./shadow-slots";
 
 const PREFIX = "ITEM";
+
+/** The reductions offered by reduce_calc, as a replaceable dropdown slot. */
+const REDUCE_OPS: Blockly.MenuOption[] = [
+  ["加", "+"],
+  ["减", "-"],
+  ["乘", "*"],
+  ["除", "/"],
+  ["整除", "//"],
+  ["取余", "%"],
+  ["幂", "**"],
+  ["按位与", "&"],
+  ["按位或", "|"],
+  ["按位异或", "^"],
+];
+
+// Older saved workspaces keep the operator and separator as fields; the
+// migrator moves them into the slots they now belong to.
+SHADOW_SLOTS.set("reduce_calc", [
+  {
+    input: "OP",
+    shadowType: "literal_dropdown",
+    value: "+",
+    options: REDUCE_OPS,
+  },
+  { input: "SEP", shadowType: "literal_text", value: "，" },
+]);
 
 function inputCount(block: Blockly.Block): number {
   let count = 0;
@@ -111,24 +138,9 @@ Blockly.common.defineBlocks({
   reduce_calc: {
     init(this: Blockly.Block) {
       this.jsonInit({
-        message0: "# %1 分隔 %2 %3",
+        message0: "# %1 分隔符 %2 %3",
         args0: [
-          {
-            type: "field_dropdown",
-            name: "OP",
-            options: [
-              ["加", "+"],
-              ["减", "-"],
-              ["乘", "*"],
-              ["除", "/"],
-              ["整除", "//"],
-              ["取余", "%"],
-              ["幂", "**"],
-              ["按位与", "&"],
-              ["按位或", "|"],
-              ["按位异或", "^"],
-            ],
-          },
+          { type: "input_value", name: "OP" },
           { type: "input_value", name: "SEP" },
           { type: "input_value", name: "ITEM0", check: ["String"] }
         ],
@@ -137,8 +149,16 @@ Blockly.common.defineBlocks({
         inputsInline: false,
         tooltip: "把各段按同一个分隔符拆开后从左到右做归约运算",
       });
-      // The separator is an editable literal, not a fixed dropdown, so it can
-      // also be supplied by an expression.
+      // The operator and separator are editable literals, not fixed choices,
+      // so an expression can be dropped onto either slot.
+      this.getInput("OP")?.connection?.setShadowState(
+        shadowState({
+          input: "OP",
+          shadowType: "literal_dropdown",
+          value: "+",
+          options: REDUCE_OPS,
+        }),
+      );
       this.getInput("SEP")?.connection?.setShadowState({
         type: "literal_text",
         fields: { TEXT: "，" },

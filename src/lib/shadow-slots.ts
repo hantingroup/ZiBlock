@@ -6,7 +6,8 @@
  * field in place, and any reporter with an output connection can cover it.
  *
  * `blocks.yml` keeps using `field_input` / `field_number` /
- * `field_multilinetext`; `prepareShadowSlots` rewrites those arguments into
+ * `field_multilinetext`, plus `field_dropdown` where the definition marks it
+ * with `shadow: true`; `prepareShadowSlots` rewrites those arguments into
  * value inputs and remembers the shadow each one starts with.
  */
 
@@ -15,7 +16,8 @@ import * as Blockly from "blockly";
 export type LiteralType =
   | "literal_text"
   | "literal_multiline"
-  | "literal_number";
+  | "literal_number"
+  | "literal_dropdown";
 
 /** One field turned into a value slot. */
 export interface ShadowSlot {
@@ -25,14 +27,20 @@ export interface ShadowSlot {
   shadowType: LiteralType;
   /** Initial literal value; number slots keep a number, not a string. */
   value: string | number;
+  /** Choices of a dropdown slot, carried by the shadow's extra state. */
+  options?: Blockly.MenuOption[];
 }
 
 /** Field types that become slots, mapped to their shadow block type. */
-const SHADOW_KINDS: Record<string, { shadowType: LiteralType }> = {
-  field_input: { shadowType: "literal_text" },
-  field_multilinetext: { shadowType: "literal_multiline" },
-  field_number: { shadowType: "literal_number" },
-};
+const SHADOW_KINDS: Record<string, { shadowType: LiteralType; optIn?: boolean }> =
+  {
+    field_input: { shadowType: "literal_text" },
+    field_multilinetext: { shadowType: "literal_multiline" },
+    field_number: { shadowType: "literal_number" },
+    // Dropdowns become slots only where the definition asks (`shadow: true`):
+    // most remaining ones are fixed choices, such as the query comparisons.
+    field_dropdown: { shadowType: "literal_dropdown", optIn: true },
+  };
 
 const SHADOW_EXTENSION = "ziblock_shadow_slots";
 
@@ -47,6 +55,23 @@ function literalValue(
   if (shadowType !== "literal_number") return String(value ?? "");
   const number = Number(value);
   return Number.isFinite(number) ? number : 0;
+}
+
+/** A dropdown starts on its declared value, else on its first option. */
+function dropdownValue(options: unknown): string {
+  const first = Array.isArray(options) ? options[0] : undefined;
+  if (Array.isArray(first)) return String(first[1] ?? "");
+  return "";
+}
+
+/** Saved shadow state for a slot, including the choices it must offer. */
+export function shadowState(slot: ShadowSlot): Blockly.serialization.blocks.State {
+  const state: Blockly.serialization.blocks.State = {
+    type: slot.shadowType,
+    fields: { TEXT: literalValue(slot.shadowType, slot.value) },
+  };
+  if (slot.options) state.extraState = { options: slot.options };
+  return state;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -73,6 +98,7 @@ export function prepareShadowSlots(
         const kind =
           arg && typeof arg === "object" ? SHADOW_KINDS[arg.type] : undefined;
         if (!kind || !arg.name) return arg;
+        if (kind.optIn && arg.shadow !== true) return arg;
 
         // Literal text blocks are already replaceable expressions. Their text
         // stays a plain field instead of a nested value slot.
@@ -85,7 +111,17 @@ export function prepareShadowSlots(
         slots.push({
           input: arg.name,
           shadowType: kind.shadowType,
-          value: literalValue(kind.shadowType, arg.text ?? arg.value),
+          value: literalValue(
+            kind.shadowType,
+            arg.text ??
+              arg.value ??
+              (kind.shadowType === "literal_dropdown"
+                ? dropdownValue(arg.options)
+                : undefined),
+          ),
+          ...(kind.shadowType === "literal_dropdown" && Array.isArray(arg.options)
+            ? { options: arg.options }
+            : {}),
         });
         // The literal now lives in the shadow block; only the connection check
         // still belongs on the input.
@@ -139,6 +175,32 @@ export function defineLiteralBlocks() {
       tooltip: "数字字面量；可以用值积木替换",
     },
   ]);
+  // Dropdowns carry their choices in extra state, so one block type serves
+  // every dropdown slot. The values are DSL tokens, not user text.
+  Blockly.common.defineBlocks({
+    literal_dropdown: {
+      init(this: Blockly.Block) {
+        this.jsonInit({
+          message0: "%1",
+          args0: [
+            { type: "field_dropdown", name: "TEXT", options: [["", ""]] },
+          ],
+          output: "String",
+          style: "math_blocks",
+          tooltip: "下拉字面量；可以用值积木替换",
+        });
+      },
+      saveExtraState(this: Blockly.Block) {
+        const field = this.getField("TEXT") as Blockly.FieldDropdown | null;
+        return { options: field?.getOptions(false) ?? [] };
+      },
+      loadExtraState(this: Blockly.Block, state: { options?: unknown }) {
+        const field = this.getField("TEXT") as Blockly.FieldDropdown | null;
+        if (field && Array.isArray(state?.options) && state.options.length)
+          field.setOptions(state.options as Blockly.MenuOption[]);
+      },
+    },
+  });
 }
 
 /** Gives every converted input its initial literal shadow. */
@@ -147,10 +209,7 @@ export function registerShadowSlotExtension() {
     const slots = SHADOW_SLOTS.get(this.type);
     if (!slots) return;
     for (const slot of slots) {
-      this.getInput(slot.input)?.connection?.setShadowState({
-        type: slot.shadowType,
-        fields: { TEXT: slot.value },
-      });
+      this.getInput(slot.input)?.connection?.setShadowState(shadowState(slot));
     }
   });
 }
@@ -189,11 +248,9 @@ function migrateBlock(block: unknown): void {
       delete state.fields[slot.input];
       if (state.inputs?.[slot.input]) continue;
       state.inputs ??= {};
+      const initial = literalValue(slot.shadowType, value);
       state.inputs[slot.input] = {
-        shadow: {
-          type: slot.shadowType,
-          fields: { TEXT: literalValue(slot.shadowType, value) },
-        },
+        shadow: shadowState({ ...slot, value: initial }),
       };
     }
   }

@@ -1,7 +1,8 @@
 # Text/number fields become Scratch-style value slots when the blocks load:
 # `field_input`, `field_number` and `field_multilinetext` arguments are turned
 # into value inputs with editable literal shadow blocks (see shadow-slots.ts),
-# so a value reporter can be dropped onto any of them.
+# so a value reporter can be dropped onto any of them. `field_dropdown` is
+# converted the same way when the argument sets `shadow: true`.
 #
 # Every general block is a string expression (output String). Statement
 # connections are reserved for the lexicon query C-shaped editor below.
@@ -251,13 +252,15 @@
   inputsInline: false
   message0: 随机数 %1 到 %2
   args0: &range_bounds
-    - { type: field_number, name: LEFT, value: 1 }
-    - { type: field_number, name: RIGHT, value: 9 }
+    - { type: field_input, name: LEFT, text: "1" }
+    - { type: field_input, name: RIGHT, text: "9" }
   message1: 格式 %1 字形 %2
   args1: &range_format
     - { type: field_input, name: FSPEC }
     - type: field_dropdown
       name: FUSR
+      # `shadow: true` turns the dropdown into a replaceable value slot.
+      shadow: true
       options:
         - [自动, ""]
         - [十进制 d, d]
@@ -272,6 +275,7 @@
   args2: &range_extra
     - type: field_dropdown
       name: DIST
+      shadow: true
       options:
         - [无, ""]
         - [正态, n]
@@ -288,15 +292,9 @@
         - [拉普拉斯, l]
     - { type: field_input, name: RNAME }
     - { type: field_input, name: CNAME }
-  message3: 多选分隔 %1 数量 %2
+  message3: 分隔符 %1 数量 %2
   args3: &range_count
-    - type: field_dropdown
-      name: CSEP
-      options:
-        - [无, ""]
-        - [逗号 ，, ，]
-        - [顿号 、, 、]
-        - [空格, " "]
+    - { type: field_input, name: CSEP }
     - { type: field_input, name: COUNT }
   <<:
     <<: *math_blocks
@@ -310,7 +308,7 @@
   args1: *range_format
   message2: 分布 %1 读名 %2 写名 %3
   args2: *range_extra
-  message3: 多选分隔 %1 数量 %2
+  message3: 分隔符 %1 数量 %2
   args3: *range_count
   output: "String"
   style: math_blocks
@@ -325,6 +323,7 @@
     - { type: field_input, name: FSPEC, text: ".2f" }
     - type: field_dropdown
       name: FUSR
+      shadow: true
       options:
         - [十进制 d, d]
         - [无, ""]
