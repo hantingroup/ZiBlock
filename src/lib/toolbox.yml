@@ -6,11 +6,7 @@ contents:
     name: 文本
     colour: "%{BKY_TEXTS_HUE}"
     contents:
-      # - { kind: block, type: text }
       - { kind: block, type: text_multiline }
-      # - { kind: block, type: translate }
-      # - { kind: block, type: translate_multiline }
-      # - { kind: block, type: translate_block }
       - { kind: block, type: slice }
       - { kind: block, type: transform }
       - { kind: block, type: alias }

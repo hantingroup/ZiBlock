@@ -493,8 +493,7 @@ export function findEnclosingLexicon(
     parent;
     parent = parent.getSurroundParent()
   ) {
-    if (parent.type === "lexicon" || parent.type === "lexicon_value")
-      return parent;
+    if (parent.type === "lexicon") return parent;
   }
   return undefined;
 }
@@ -514,8 +513,7 @@ export function findEnclosingGroup(
     parent = parent.getSurroundParent()
   ) {
     if (parent.type === "lexicon_group") return parent;
-    if (parent.type === "lexicon" || parent.type === "lexicon_value")
-      return undefined;
+    if (parent.type === "lexicon") return undefined;
   }
   return undefined;
 }

@@ -184,22 +184,10 @@ Generator.forBlock['literal_dropdown'] = (block: Blockly.Block): [string, number
 
 // Text =======================================================================
 
-Generator.forBlock['text_multiline'] =
-Generator.forBlock['text'] = (block: Blockly.Block): [string, number] => [
-  String(block.getFieldValue('TEXT') ?? ''),
-  ORDER_NONE,
-]
-
-Generator.forBlock['translate_multiline'] =
-Generator.forBlock['translate'] = (block: Blockly.Block): [string, number] => [
-  translate(slotCode(block, 'TEXT')),
-  ORDER_NONE,
-]
-
-Generator.forBlock['translate_block'] = (
+Generator.forBlock['text_multiline'] = (
   block: Blockly.Block,
 ): [string, number] => [
-  translate(escapedSlotText(block, 'BODY', false)),
+  String(block.getFieldValue('TEXT') ?? ''),
   ORDER_NONE,
 ]
 
@@ -236,8 +224,7 @@ function aliasCode(block: Blockly.Block): string {
   return translate(alias)
 }
 
-Generator.forBlock['alias'] =
-Generator.forBlock['alias_value'] = (block: Blockly.Block): [string, number] => [
+Generator.forBlock['alias'] = (block: Blockly.Block): [string, number] => [
   aliasCode(block),
   ORDER_NONE,
 ]
@@ -452,10 +439,10 @@ function lexiconCode(block: Blockly.Block): string {
   return renderExpression(name, queryCode(block), field);
 }
 
-Generator.forBlock['lexicon'] =
-Generator.forBlock['lexicon_value'] = (
-  block: Blockly.Block,
-): [string, number] => [lexiconCode(block), ORDER_NONE]
+Generator.forBlock['lexicon'] = (block: Blockly.Block): [string, number] => [
+  lexiconCode(block),
+  ORDER_NONE,
+]
 
 // The 或者 separator only splits the query stack; parseStack handles it.
 Generator.forBlock['lexicon_or'] = () => ''
@@ -560,10 +547,10 @@ function rangeCode(block: Blockly.Block): string {
   return translate(code)
 }
 
-Generator.forBlock['range'] =
-Generator.forBlock['range_value'] = (
-  block: Blockly.Block,
-): [string, number] => [rangeCode(block), ORDER_NONE]
+Generator.forBlock['range'] = (block: Blockly.Block): [string, number] => [
+  rangeCode(block),
+  ORDER_NONE,
+]
 
 Generator.forBlock['format'] = (block: Blockly.Block): [string, number] => {
   const body = slotCode(block, 'BODY')
@@ -641,8 +628,7 @@ function variablesGetCode(block: Blockly.Block): string {
   return translate(Symbols.Reference + name);
 }
 
-Generator.forBlock['variables_get'] =
-Generator.forBlock['variables_get_value'] = (
+Generator.forBlock['variables_get'] = (
   block: Blockly.Block,
 ): [string, number] => [variablesGetCode(block), ORDER_NONE]
 
@@ -650,8 +636,7 @@ function lingerGetCode(block: Blockly.Block): string {
   return translate(Symbols.LingerRef + slotText(block, 'SCOPE'));
 }
 
-Generator.forBlock['variables_get_linger'] =
-Generator.forBlock['variables_get_linger_value'] = (
+Generator.forBlock['variables_get_linger'] = (
   block: Blockly.Block,
 ): [string, number] => [lingerGetCode(block), ORDER_NONE]
 
@@ -684,8 +669,7 @@ function innerValueGetCode(block: Blockly.Block): string {
   return translate(`<<${field ? `${field}:` : ''}${name}`)
 }
 
-Generator.forBlock['inner_value_get'] =
-Generator.forBlock['inner_value_get_value'] = (
+Generator.forBlock['inner_value_get'] = (
   block: Blockly.Block,
 ): [string, number] => [innerValueGetCode(block), ORDER_NONE]
 
