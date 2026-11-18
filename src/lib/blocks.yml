@@ -221,7 +221,7 @@
   message0: "索引 %1 到 %2"
   args0:
     - { type: field_number, name: START, value: 0, min: 0, precision: 1 }
-    - { type: field_number, name: END, value: 0, min: 0, precision: 1 }
+    - { type: field_number, name: END, value: 100, min: 1, precision: 1 }
   output: "Cond:index"
   style: text_blocks
   extensions: [lexicon_condition]
