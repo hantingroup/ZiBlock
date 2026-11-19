@@ -75,8 +75,10 @@
   }
 
   // Refreshing may toggle Blockly's disabled state, which fires change events;
-  // ignore those while the state pass is running.
+  // ignore those while the state pass is running. Loading a whole state also
+  // fires events per block, and reacting to those re-renders half-built blocks.
   let refreshing = false;
+  let loading = false;
   function refresh(workspace: Blockly.WorkspaceSvg) {
     if (refreshing) return;
     refreshing = true;
@@ -119,9 +121,17 @@
       tops[0].x = spot.x;
       tops[0].y = spot.y;
     }
-    Blockly.serialization.workspaces.load(state, workspace, {
-      recordUndo: true,
-    });
+    loading = true;
+    try {
+      Blockly.serialization.workspaces.load(state, workspace, {
+        recordUndo: true,
+      });
+    } finally {
+      loading = false;
+    }
+    // A block can be measured before its slots/children finish loading; render
+    // the whole tree once the state is complete.
+    for (const block of workspace.getAllBlocks(false)) block.render();
     refresh(workspace);
     emit(workspace);
     return tops.length;
@@ -148,7 +158,7 @@
     refresh(injected);
     emit(injected);
     injected.addChangeListener((event) => {
-      if (event.isUiEvent || refreshing) return;
+      if (event.isUiEvent || refreshing || loading) return;
       refresh(injected);
       emit(injected);
       saveWorkspace(injected);
