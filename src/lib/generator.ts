@@ -685,7 +685,10 @@ Generator.forBlock['nocensor'] = (block: Blockly.Block): [string, number] => {
 
 Generator.forBlock['reset'] = (block: Blockly.Block): [string, number] => {
   const seed = slotText(block, 'SEED')
-  return [translate('RST' + (seed ? ` ${seed}` : '')), ORDER_NONE]
+  // The engine compiles translator patterns with VERBOSE, so the literal space
+  // in `RST(?P<seed> [0-9]+)?` is ignored: only `RST123456` reaches Reset.
+  // `RST 123456` falls through to Choice.
+  return [translate('RST' + (seed ? seed : '')), ORDER_NONE]
 }
 
 // Dual connections ===========================================================
