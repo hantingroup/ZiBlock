@@ -42,7 +42,7 @@ src/
     ├── generator.ts        填字 DSL 代码生成器（Blockly.Generator）
     ├── shadow-slots.ts     文本/数字字段 → 可替换的值槽 + 影子积木
     ├── dual-connections.ts 表达式积木同时具备语句连接
-    ├── nary-inputs.ts      choice / reduce_calc 的动态多路输入
+    ├── nary-inputs.ts      choice / reduce_calc / map 的动态多路输入
     ├── transforms.ts       字体/滤镜二合一选择器
     ├── macros.ts           远程宏表（alias.tsv）与缓存
     ├── dropdown-field.ts   可搜索的长下拉菜单基类

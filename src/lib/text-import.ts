@@ -364,6 +364,23 @@ const BUILDERS: Record<
     return state;
   },
 
+  Map(node, index) {
+    const runs = group(node, "runs");
+    if (!runs) throw new TextImportError("Map 缺少遍历串");
+    const pairs = splitMapRuns(runs);
+    if (pairs.length === 0)
+      throw new TextImportError("Map 没有可识别的遍历串");
+    const state: BlockState = { type: "map" };
+    pairs.forEach((pair, position) => {
+      setMapSegment(state, `STRING${position}`, pair.string, index);
+      setMapSegment(state, `VAR${position}`, pair.name, index);
+    });
+    state.extraState = { pairCount: pairs.length };
+    setStatement(state, node, index, "target", "BODY");
+    setSlot(state, "map", "TRIM", group(node, "trim")?.text ?? "");
+    return state;
+  },
+
   Choice(node, index) {
     const items = splitItems(node, index);
     if (items.length === 0) throw new TextImportError("选择块没有任何候选");
@@ -562,6 +579,117 @@ function splitItems(node: TianziAstNode, index: NodeIndex): Item[] {
   }
   pushLiteral(main.text.length);
   return items;
+}
+
+// Map runs ===================================================================
+
+interface MapRun {
+  string: { span: TianziSpan; text: string };
+  name: { span: TianziSpan; text: string };
+}
+
+/** Skips an escaped character or a nested `[[…]]` field. */
+function scanRuns(text: string, start: number, stop: string): number {
+  let position = start;
+  while (position < text.length) {
+    const char = text[position];
+    if (char === "\\") {
+      position += 2;
+      continue;
+    }
+    if (text.startsWith("[[", position)) {
+      position = skipField(text, position);
+      continue;
+    }
+    if (char === stop) return position;
+    position++;
+  }
+  return position;
+}
+
+/** Offset just after the nested field starting at `start`. */
+function skipField(text: string, start: number): number {
+  let depth = 0;
+  let position = start;
+  while (position < text.length) {
+    if (text[position] === "\\") {
+      position += 2;
+      continue;
+    }
+    if (text.startsWith("[[", position)) {
+      depth++;
+      position += 2;
+      continue;
+    }
+    if (text.startsWith("]]", position)) {
+      depth--;
+      position += 2;
+      if (depth <= 0) return position;
+      continue;
+    }
+    position++;
+  }
+  return position;
+}
+
+/** Splits `@串>变量@串>变量…` into pairs with absolute spans. */
+function splitMapRuns(runs: TianziGroup): MapRun[] {
+  const base = runs.span[0];
+  const result: MapRun[] = [];
+  let position = 0;
+  while (position < runs.text.length) {
+    if (runs.text[position] !== "@") {
+      position++;
+      continue;
+    }
+    const stringStart = ++position;
+    position = scanRuns(runs.text, position, ">");
+    const stringEnd = position;
+    position++; // the '>'
+    const nameStart = position;
+    position = scanRuns(runs.text, position, "@");
+    const nameEnd = position;
+    if (stringEnd > stringStart && nameEnd > nameStart) {
+      result.push({
+        string: {
+          span: [base + stringStart, base + stringEnd],
+          text: runs.text.slice(stringStart, stringEnd),
+        },
+        name: {
+          span: [base + nameStart, base + nameEnd],
+          text: runs.text.slice(nameStart, nameEnd),
+        },
+      });
+    }
+  }
+  return result;
+}
+
+/** A captured literal is stored unescaped; generation escapes it again. */
+function unescapeDsl(text: string): string {
+  return text.replace(/\\(.)/gs, "$1");
+}
+
+function setMapSegment(
+  state: BlockState,
+  input: string,
+  segment: { span: TianziSpan; text: string },
+  index: NodeIndex,
+) {
+  const child = index.choose(segment.span);
+  if (child) {
+    setInput(state, input, { block: buildNode(child, index) });
+    return;
+  }
+  // Mixed text and nested fields cannot live in a literal shadow (its text is
+  // escaped on generation), so keep the raw DSL in a text block instead.
+  if (segment.text.includes("[[")) {
+    setInput(state, input, {
+      block: { type: "text_multiline", fields: { TEXT: segment.text } },
+    });
+    return;
+  }
+  setInput(state, input, { shadow: literal(unescapeDsl(segment.text)) });
 }
 
 // Lexicon queries ============================================================

@@ -604,6 +604,22 @@ Generator.forBlock['controls_repeat'] = (
   return [translate(body + symbol + times), ORDER_NONE];
 }
 
+Generator.forBlock['map'] = (block: Blockly.Block): [string, number] => {
+  const bodyBlock = block.getInputTargetBlock('BODY');
+  const body = bodyBlock
+    ? extractCode(Generator.blockToCode(bodyBlock))
+    : '';
+  const runs: string[] = [];
+  for (let position = 0; block.getInput(`STRING${position}`); position++) {
+    const string = escapedSlotText(block, `STRING${position}`);
+    const name = escapedSlotText(block, `VAR${position}`);
+    if (string && name) runs.push(`@${string}>${name}`);
+  }
+  if (!body || runs.length === 0) return ['', ORDER_NONE];
+  const trim = slotText(block, 'TRIM');
+  return [translate(`${body}*${runs.join('')}${trim}`), ORDER_NONE];
+};
+
 // Variables ==================================================================
 
 Generator.forBlock['variables_set'] = (

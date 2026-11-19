@@ -12,6 +12,30 @@ import { SHADOW_SLOTS, shadowState } from "./shadow-slots";
 
 const PREFIX = "ITEM";
 
+// Map (`内容*@串>变量…`) keeps one string/variable pair per row. The pairs
+// grow like the ITEM inputs above, but each pair needs two inputs, so they are
+// tracked separately from PREFIX.
+const MAP_STRING = "STRING";
+const MAP_VAR = "VAR";
+const MAP_TRIM = "TRIM";
+
+/** How Map trims the result; the value is the DSL suffix. */
+const MAP_TRIM_OPTIONS: Blockly.MenuOption[] = [
+  ["自动推断", ""],
+  ["关闭修剪", "..."],
+  ["仅标点", "..!"],
+  ["仅推断", "..?"],
+];
+
+SHADOW_SLOTS.set("map", [
+  {
+    input: MAP_TRIM,
+    shadowType: "literal_dropdown",
+    value: "",
+    options: MAP_TRIM_OPTIONS,
+  },
+]);
+
 /** The reductions offered by reduce_calc, as a replaceable dropdown slot. */
 const REDUCE_OPS: Blockly.MenuOption[] = [
   ["加", "+"],
@@ -115,9 +139,100 @@ function setupNaryInputs(block: Blockly.Block, minimum = 1) {
   };
 }
 
-// These two blocks live in code instead of blocks.yml: the n-ary inputs and
-// their extra state are part of init, which a non-mutator extension is not
-// allowed to change.
+// Map run pairs ==============================================================
+
+function mapPairCount(block: Blockly.Block): number {
+  let count = 0;
+  while (block.getInput(`${MAP_STRING}${count}`)) count++;
+  return count;
+}
+
+/** A pair counts as filled when either slot holds a block or literal text. */
+function slotFilled(block: Blockly.Block, name: string): boolean {
+  const target = block.getInputTargetBlock(name);
+  if (!target) return false;
+  if (!target.isShadow()) return true;
+  return String(target.getFieldValue("TEXT") ?? "").trim() !== "";
+}
+
+function appendMapPair(block: Blockly.Block, index: number) {
+  const stringInput = block
+    .appendValueInput(`${MAP_STRING}${index}`)
+    .appendField(index === 0 ? "串" : `串 ${index + 1}`)
+    .setCheck(["String"]);
+  const varInput = block
+    .appendValueInput(`${MAP_VAR}${index}`)
+    .appendField("变量")
+    .setCheck(["String"]);
+  // The trim row stays after every pair.
+  block.moveInputBefore(`${MAP_STRING}${index}`, MAP_TRIM);
+  block.moveInputBefore(`${MAP_VAR}${index}`, MAP_TRIM);
+  stringInput.connection?.setShadowState({
+    type: "literal_text",
+    fields: { TEXT: "" },
+  });
+  varInput.connection?.setShadowState({
+    type: "literal_text",
+    fields: { TEXT: "" },
+  });
+}
+
+/** Keep one empty pair after the last filled one. */
+function syncMapPairs(block: Blockly.Block, minimum = 1): boolean {
+  const count = mapPairCount(block);
+  let lastFilled = -1;
+  for (let index = 0; index < count; index++) {
+    if (
+      slotFilled(block, `${MAP_STRING}${index}`) ||
+      slotFilled(block, `${MAP_VAR}${index}`)
+    )
+      lastFilled = index;
+  }
+
+  const needed = Math.max(minimum, lastFilled + 2);
+  let changed = false;
+  for (let index = count - 1; index >= needed; index--) {
+    block.removeInput(`${MAP_STRING}${index}`);
+    block.removeInput(`${MAP_VAR}${index}`);
+    changed = true;
+  }
+  for (let index = count; index < needed; index++) {
+    appendMapPair(block, index);
+    changed = true;
+  }
+  if (changed && block instanceof Blockly.BlockSvg && block.rendered)
+    block.render();
+  return changed;
+}
+
+function watchMapPairs(block: Blockly.Block) {
+  type Watched = Blockly.Block & { [LISTENER_FLAG]?: boolean };
+  const watched = block as Watched;
+  if (block.workspace.isFlyout || watched[LISTENER_FLAG]) return;
+  watched[LISTENER_FLAG] = true;
+  block.workspace.addChangeListener(() => {
+    if (!block.isDisposed()) syncMapPairs(block);
+  });
+}
+
+function setupMapRuns(block: Blockly.Block, minimum = 1) {
+  syncMapPairs(block, minimum);
+  watchMapPairs(block);
+
+  block.saveExtraState = () => ({ pairCount: mapPairCount(block) });
+  block.loadExtraState = (state: { pairCount?: unknown }) => {
+    const count = Math.max(
+      minimum,
+      Math.floor(Number(state?.pairCount)) || minimum,
+    );
+    for (let index = mapPairCount(block); index < count; index++)
+      appendMapPair(block, index);
+  };
+}
+
+// These blocks live in code instead of blocks.yml: the n-ary inputs and their
+// extra state are part of init, which a non-mutator extension is not allowed to
+// change.
 
 Blockly.common.defineBlocks({
   choice: {
@@ -168,6 +283,34 @@ Blockly.common.defineBlocks({
       this.setPreviousStatement(true, "TzText");
       this.setNextStatement(true, "TzText");
       setupNaryInputs(this);
+    },
+  },
+  map: {
+    init(this: Blockly.Block) {
+      this.jsonInit({
+        message0: "遍历",
+        message1: "%1",
+        args1: [{ type: "input_statement", name: "BODY", check: "TzText" }],
+        message2: "修剪 %1",
+        args2: [{ type: "input_value", name: MAP_TRIM }],
+        output: "String",
+        style: "loop_blocks",
+        inputsInline: false,
+        tooltip:
+          "在字符串的每个字符上执行一次内容；串与变量成对出现，可以有多组，次数以最长的串为准",
+        helpUrl: "https://tianzi.hongbot.icu/howto#Map",
+      });
+      this.getInput(MAP_TRIM)?.connection?.setShadowState(
+        shadowState({
+          input: MAP_TRIM,
+          shadowType: "literal_dropdown",
+          value: "",
+          options: MAP_TRIM_OPTIONS,
+        }),
+      );
+      this.setPreviousStatement(true, "TzText");
+      this.setNextStatement(true, "TzText");
+      setupMapRuns(this);
     },
   },
 });
