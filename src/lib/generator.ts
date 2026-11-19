@@ -177,6 +177,15 @@ Generator.forBlock['literal_dropdown'] = (block: Blockly.Block): [string, number
   ORDER_NONE,
 ]
 
+// The default shadow of a variable slot: a dropdown of the workspace's
+// variables, emitted as the plain variable name.
+Generator.forBlock['variable_name'] = (
+  block: Blockly.Block,
+): [string, number] => [
+  String(block.getField('VAR')?.getText() ?? ''),
+  ORDER_NONE,
+]
+
 // Text =======================================================================
 
 Generator.forBlock['text_multiline'] = (
@@ -601,19 +610,9 @@ Generator.forBlock['variables_set'] = (
   block: Blockly.Block,
 ): [string, number] => {
   const value = slotCode(block, 'BODY');
-  const name = block.getField('VAR')!.getText();
-  const echo = block.getFieldValue('ECHO') === 'TRUE';
-  return [
-    translate(value + Symbols.Cache + name + (echo ? Symbols.Cache : '')),
-    ORDER_NONE,
-  ];
-}
-
-Generator.forBlock['variables_set_block'] = (
-  block: Blockly.Block,
-): [string, number] => {
-  const value = slotCode(block, 'BODY');
-  const name = slotCode(block, 'VAR');
+  // A reporter in the name slot is already an expression; a literal is escaped
+  // like any other text so DSL symbols in the 写名 stay literal.
+  const name = escapedSlotText(block, 'VAR');
   const echo = block.getFieldValue('ECHO') === 'TRUE';
   return [
     translate(value + Symbols.Cache + name + (echo ? Symbols.Cache : '')),
@@ -641,7 +640,7 @@ Generator.forBlock['variables_get_linger'] = (
 Generator.forBlock['variables_set_linger'] = (
   block: Blockly.Block,
 ): [string, number] => {
-  const name = block.getField('VAR')!.getText();
+  const name = escapedSlotText(block, 'VAR');
   const scope = slotText(block, 'SCOPE');
   return [translate(name + Symbols.LingerAssign + scope), ORDER_NONE];
 }

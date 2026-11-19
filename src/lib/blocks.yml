@@ -1,8 +1,9 @@
 # Text/number fields become Scratch-style value slots when the blocks load:
 # `field_input`, `field_number` and `field_multilinetext` arguments are turned
 # into value inputs with editable literal shadow blocks (see shadow-slots.ts),
-# so a value reporter can be dropped onto any of them. `field_dropdown` is
-# converted the same way when the argument sets `shadow: true`.
+# so a value reporter can be dropped onto any of them. `field_dropdown` and
+# `field_variable` are converted the same way when the argument sets
+# `shadow: true`.
 #
 # Every general block is a string expression (output String). Statement
 # connections are reserved for the lexicon query C-shaped editor below.
@@ -348,30 +349,28 @@
     helpUrl: "https://tianzi.hongbot.icu/howto#引用-reference"
 
 - type: variables_set
-  message0: 设置 %1
-  args0: [*variable_var]
-  message1: 为 %1
-  args1: [*statement_body]
-  message2: "显示 %1"
-  args2:
+  inputsInline: true
+  message0: 设置 %1 为 %2
+  args0:
+    # Both parts are value slots. The 写名 starts on a variable dropdown, the
+    # value on an empty editable literal; either can be covered by a block.
+    - &variable_slot
+      type: field_variable
+      name: VAR
+      variable: "%{BKY_VARIABLES_DEFAULT_NAME}"
+      shadow: true
+    - { type: field_input, name: BODY }
+  message1: "显示 %1"
+  args1:
     - &checkbox_echo
       type: field_checkbox
       name: ECHO
-  <<: &variables_set
-    <<: *variable_blocks
-    tooltip: "%{BKY_VARIABLES_SET_TOOLTIP}"
-    helpUrl: "https://tianzi.hongbot.icu/howto#赋值"
-
-- type: variables_set_block
-  message0: 设置 %1
-  args0:
-    - type: input_value
-      name: VAR
-  message1: 为 %1
-  args1: [*statement_body]
-  message2: "显示 %1"
-  args2: [*checkbox_echo]
-  <<: *variables_set
+  # No variable field any more, so the variable get/set context menu (which
+  # expects a VAR field) does not apply.
+  <<: *statements
+  style: variable_blocks
+  tooltip: "%{BKY_VARIABLES_SET_TOOLTIP}"
+  helpUrl: "https://tianzi.hongbot.icu/howto#赋值"
 
 - type: variables_get_linger
   message0: 导入 %1
@@ -387,8 +386,11 @@
 
 - type: variables_set_linger
   message0: 导出 %1 到 %2
-  args0: [*variable_var, *input_scope]
+  # The variable name is a slot as well, so it can be computed.
+  args0: [*variable_slot, *input_scope]
   <<: *variable_dynamic_blocks
+  # The variable context menu needs a VAR field, which the slot replaced.
+  extensions: [dual_connection]
   helpUrl: "https://tianzi.hongbot.icu/howto#LingerAssign"
 
 - type: inner_value_set
@@ -397,7 +399,9 @@
     - { type: field_input, name: FIELD, text: Range }
     - { type: field_input, name: NAME }
   message1: 值 %1
-  args1: [*statement_body]
+  # A value slot with an empty literal, so the block starts on an editable
+  # text field rather than an empty socket.
+  args1: [{ type: field_input, name: BODY }]
   message2: 输出 %1
   args2: [*checkbox_echo]
   <<:

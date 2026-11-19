@@ -39,7 +39,6 @@ contents:
     contents:
       - { kind: block, type: variables_get }
       - { kind: block, type: variables_set }
-      - { kind: block, type: variables_set_block }
       - { kind: block, type: variables_get_linger }
       - { kind: block, type: variables_set_linger }
       - { kind: block, type: inner_value_set }

@@ -6,9 +6,9 @@
  * field in place, and any reporter with an output connection can cover it.
  *
  * `blocks.yml` keeps using `field_input` / `field_number` /
- * `field_multilinetext`, plus `field_dropdown` where the definition marks it
- * with `shadow: true`; `prepareShadowSlots` rewrites those arguments into
- * value inputs and remembers the shadow each one starts with.
+ * `field_multilinetext`, plus `field_dropdown` / `field_variable` where the
+ * definition marks it with `shadow: true`; `prepareShadowSlots` rewrites those
+ * arguments into value inputs and remembers the shadow each one starts with.
  */
 
 import * as Blockly from "blockly";
@@ -17,7 +17,8 @@ export type LiteralType =
   | "literal_text"
   | "literal_multiline"
   | "literal_number"
-  | "literal_dropdown";
+  | "literal_dropdown"
+  | "variable_name";
 
 /** One field turned into a value slot. */
 export interface ShadowSlot {
@@ -40,6 +41,9 @@ const SHADOW_KINDS: Record<string, { shadowType: LiteralType; optIn?: boolean }>
     // Dropdowns become slots only where the definition asks (`shadow: true`):
     // most remaining ones are fixed choices, such as the query comparisons.
     field_dropdown: { shadowType: "literal_dropdown", optIn: true },
+    // A variable dropdown can be replaced by any expression, but the variable
+    // model only makes sense as the default (写名) input of the set block.
+    field_variable: { shadowType: "variable_name", optIn: true },
   };
 
 const SHADOW_EXTENSION = "ziblock_shadow_slots";
@@ -64,11 +68,23 @@ function dropdownValue(options: unknown): string {
   return "";
 }
 
+/** Resolves a variable field's default name, e.g. `%{BKY_VARIABLES_DEFAULT_NAME}`. */
+function variableName(value: unknown): string {
+  const name = Blockly.utils.parsing.replaceMessageReferences(
+    String(value ?? ""),
+  );
+  return name || String(Blockly.Msg["VARIABLES_DEFAULT_NAME"] ?? "");
+}
+
 /** Saved shadow state for a slot, including the choices it must offer. */
 export function shadowState(slot: ShadowSlot): Blockly.serialization.blocks.State {
+  const fields =
+    slot.shadowType === "variable_name"
+      ? { VAR: { name: String(slot.value) } }
+      : { TEXT: literalValue(slot.shadowType, slot.value) };
   const state: Blockly.serialization.blocks.State = {
     type: slot.shadowType,
-    fields: { TEXT: literalValue(slot.shadowType, slot.value) },
+    fields,
   };
   if (slot.options) state.extraState = { options: slot.options };
   return state;
@@ -106,17 +122,20 @@ export function prepareShadowSlots(
           return plain;
         }
 
+        const raw =
+          arg.text ??
+          arg.value ??
+          arg.variable ??
+          (kind.shadowType === "literal_dropdown"
+            ? dropdownValue(arg.options)
+            : undefined);
         slots.push({
           input: arg.name,
           shadowType: kind.shadowType,
-          value: literalValue(
-            kind.shadowType,
-            arg.text ??
-              arg.value ??
-              (kind.shadowType === "literal_dropdown"
-                ? dropdownValue(arg.options)
-                : undefined),
-          ),
+          value:
+            kind.shadowType === "variable_name"
+              ? variableName(raw)
+              : literalValue(kind.shadowType, raw),
           ...(kind.shadowType === "literal_dropdown" && Array.isArray(arg.options)
             ? { options: arg.options }
             : {}),
@@ -171,6 +190,20 @@ export function defineLiteralBlocks() {
       output: "Number",
       style: "math_blocks",
       tooltip: "数字字面量；可以用值积木替换",
+    },
+    {
+      type: "variable_name",
+      message0: "%1",
+      args0: [
+        {
+          type: "field_variable",
+          name: "VAR",
+          variable: "%{BKY_VARIABLES_DEFAULT_NAME}",
+        },
+      ],
+      output: "String",
+      style: "variable_blocks",
+      tooltip: "变量名；可以用值积木替换",
     },
   ]);
   // Dropdowns carry their choices in extra state, so one block type serves
@@ -245,11 +278,19 @@ function migrateBlock(block: unknown): void {
     delete state.fields.ALIAS;
   }
 
+  // The 设置 blocks used to keep the variable name in a dropdown field; that
+  // name is now a value slot. Rename the old block type so saved canvases
+  // still load, and let the slot migration below turn the name into a shadow.
+  if (state.type === "variables_set_block") state.type = "variables_set";
+
   const slots = state.type ? SHADOW_SLOTS.get(state.type) : undefined;
   if (slots && state.fields) {
     for (const slot of slots) {
       if (!(slot.input in state.fields)) continue;
-      const value = state.fields[slot.input];
+      let value = state.fields[slot.input];
+      // A variable field saved `{name}`; the slot only needs the name.
+      if (value !== null && typeof value === "object")
+        value = String((value as { name?: unknown }).name ?? "");
       delete state.fields[slot.input];
       if (state.inputs?.[slot.input]) continue;
       state.inputs ??= {};

@@ -411,15 +411,13 @@ const BUILDERS: Record<
   },
 
   Assign(node, index) {
-    const name = requiredGroup(node, "cname");
+    requiredGroup(node, "cname");
     const echo = (groupText(node, "output") ?? "") !== "";
-    const nameChild = index.choose(name.span);
-    const state: BlockState = {
-      type: nameChild ? "variables_set_block" : "variables_set",
-    };
-    if (nameChild) setInput(state, "VAR", { block: buildNode(nameChild, index) });
-    else state.fields = { VAR: { name: name.text } };
-    state.fields = { ...state.fields, ECHO: echo };
+    const state: BlockState = { type: "variables_set" };
+    // The 写名 is a value slot, so it accepts both plain text and a nested
+    // expression.
+    setSlotOrChild(state, "variables_set", node, index, "VAR", "cname");
+    state.fields = { ECHO: echo };
     setBody(state, node, index, "val");
     return state;
   },
@@ -438,10 +436,14 @@ const BUILDERS: Record<
   },
 
   LingerAssign(node, index) {
-    const state: BlockState = {
-      type: "variables_set_linger",
-      fields: { VAR: { name: requiredGroup(node, "val").text } },
-    };
+    const state: BlockState = { type: "variables_set_linger" };
+    const names = requiredGroup(node, "val");
+    const child = index.choose(names.span);
+    if (child) setInput(state, "VAR", { block: buildNode(child, index) });
+    // An empty list means "export every cached name"; leave the slot empty
+    // rather than creating a variable with an empty name.
+    else if (names.text)
+      setSlot(state, "variables_set_linger", "VAR", names.text);
     setSlotOrChild(state, "variables_set_linger", node, index, "SCOPE", "cname");
     return state;
   },
