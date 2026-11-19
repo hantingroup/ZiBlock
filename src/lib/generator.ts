@@ -134,9 +134,9 @@ function slotNumber(
 
 // Top-level concatenation ====================================================
 //
-// Every general block is a string expression. The DSL concatenates top-level
-// expressions directly, so the stock workspaceToCode (which joins top blocks
-// with newlines) is replaced.
+// Every general block is a string expression. Each top-level block becomes one
+// line of the fill-in program; blocks chained through `next` concatenate
+// directly (see `scrub_` below).
 
 /** Statement chains concatenate: append the next block unless thisOnly. */
 Generator.scrub_ = (
@@ -163,7 +163,7 @@ Generator.workspaceToCode = function (
       return Array.isArray(generated) ? generated[0] : generated;
     })
     .filter(Boolean)
-    .join('');
+    .join('\n');
   return this.finish(code);
 };
 
