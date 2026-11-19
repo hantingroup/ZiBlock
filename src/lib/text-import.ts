@@ -405,7 +405,7 @@ const BUILDERS: Record<
     return state;
   },
 
-  Lex(node) {
+  Lex(node, index) {
     const name = requiredGroup(node, "lex").text;
     const state: BlockState = {
       type: "lexicon",
@@ -414,9 +414,13 @@ const BUILDERS: Record<
     const query = node.query;
     if (query?.error)
       throw new TextImportError(`词库查询语法有误：${query.error}`);
-    const conditions = query ? queryStates(query.ast ?? []) : [];
+    const conditions = query
+      ? queryStates(query.ast ?? [], node.children ?? [], index)
+      : [];
     const first = chain(conditions);
     if (first) setInput(state, "QUERY", { block: first });
+    // The engine reports the word caches the result under as cname.
+    setSlotOrChild(state, "lexicon", node, index, "CNAME", "cname");
     return state;
   },
 
@@ -702,20 +706,28 @@ const LENGTH_COMPARISON: Record<string, string> = {
   "<=": "lte",
 };
 
-function queryStates(nodes: readonly TianziQueryNode[]): BlockState[] {
+function queryStates(
+  nodes: readonly TianziQueryNode[],
+  nested: readonly TianziAstNode[],
+  index: NodeIndex,
+): BlockState[] {
   const root = nodes[0];
   if (!root) return [];
-  return queryNode(root);
+  return queryNode(root, nested, index);
 }
 
-function queryNode(node: TianziQueryNode): BlockState[] {
+function queryNode(
+  node: TianziQueryNode,
+  nested: readonly TianziAstNode[],
+  index: NodeIndex,
+): BlockState[] {
   if (node.kind === "and") {
     const states: BlockState[] = [];
     for (const child of node.children ?? []) {
       // A nested OR would need DNF expansion; the generator never emits it.
       if (child.kind === "or")
         throw new TextImportError("暂不支持嵌套的或分支");
-      states.push(...queryNode(child));
+      states.push(...queryNode(child, nested, index));
     }
     return states;
   }
@@ -725,18 +737,22 @@ function queryNode(node: TianziQueryNode): BlockState[] {
     for (const child of node.children ?? []) {
       if (!first) states.push({ type: "lexicon_or" });
       first = false;
-      states.push(...queryNode(child));
+      states.push(...queryNode(child, nested, index));
     }
     return states;
   }
-  if (node.kind === "seg") return segmentStates(node);
+  if (node.kind === "seg") return segmentStates(node, nested, index);
   throw new TextImportError(`暂不支持的查询节点：${node.kind}`);
 }
 
-function segmentStates(segment: TianziQueryNode): BlockState[] {
+function segmentStates(
+  segment: TianziQueryNode,
+  nested: readonly TianziAstNode[],
+  index: NodeIndex,
+): BlockState[] {
   const conditions = (segment.children ?? [])
     .filter((child) => child.kind === "tok")
-    .map(tokenState);
+    .map((token) => tokenState(token, nested, index));
   if (conditions.length === 0) throw new TextImportError("查询段为空");
 
   let states = conditions;
@@ -753,18 +769,42 @@ function tokenValue(token: TianziQueryNode, name: string): string {
   return value;
 }
 
-function tokenState(token: TianziQueryNode): BlockState {
+/**
+ * The engine rewrites nested query expressions to their values: `=[[3-6>k]]`
+ * is reported as `=6`. When the token's span still covers one nested field,
+ * that field is the original expression and should stay a block.
+ */
+function nestedTokenNode(
+  token: TianziQueryNode,
+  nested: readonly TianziAstNode[],
+): TianziAstNode | undefined {
+  if (nested.length !== 1) return undefined;
+  const child = nested[0];
+  return child.field_span[0] >= token.span[0] &&
+    child.field_span[1] <= token.span[1]
+    ? child
+    : undefined;
+}
+
+function tokenState(
+  token: TianziQueryNode,
+  nested: readonly TianziAstNode[],
+  index: NodeIndex,
+): BlockState {
   const value = (name: string) => tokenValue(token, name);
+  const child = nestedTokenNode(token, nested);
 
   switch (token.schema) {
     case "SPinyin": {
       const state: BlockState = { type: "lexicon_pinyin" };
-      setSlot(state, "lexicon_pinyin", "PATTERN", value("pinyin"));
+      if (child) setInput(state, "PATTERN", { block: buildNode(child, index) });
+      else setSlot(state, "lexicon_pinyin", "PATTERN", value("pinyin"));
       return state;
     }
     case "SPinyinRegex": {
       const state: BlockState = { type: "lexicon_pinyin_regex" };
-      setSlot(state, "lexicon_pinyin_regex", "PATTERN", value("regex"));
+      if (child) setInput(state, "PATTERN", { block: buildNode(child, index) });
+      else setSlot(state, "lexicon_pinyin_regex", "PATTERN", value("regex"));
       return state;
     }
     case "SWordLength": {
@@ -774,7 +814,8 @@ function tokenState(token: TianziQueryNode): BlockState {
           COMPARISON: LENGTH_COMPARISON[token.groups?.o ?? ""] ?? "eq",
         },
       };
-      setSlot(state, "lexicon_length", "LENGTH", value("l"));
+      if (child) setInput(state, "LENGTH", { block: buildNode(child, index) });
+      else setSlot(state, "lexicon_length", "LENGTH", value("l"));
       return state;
     }
     case "SPath": {
@@ -801,7 +842,8 @@ function tokenState(token: TianziQueryNode): BlockState {
     }
     case "SRegex": {
       const state: BlockState = { type: "lexicon_regex" };
-      setSlot(state, "lexicon_regex", "SOURCE", value("regex"));
+      if (child) setInput(state, "SOURCE", { block: buildNode(child, index) });
+      else setSlot(state, "lexicon_regex", "SOURCE", value("regex"));
       return state;
     }
     default:

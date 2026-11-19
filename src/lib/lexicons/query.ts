@@ -98,6 +98,21 @@ function wordLength(
   return { kind: "wordLength", value, comparison };
 }
 
+/**
+ * A length condition whose value is a DSL expression, e.g. `=[[3-6>k]]`.
+ * The engine evaluates the expression before running the query, so this is
+ * kept as raw DSL instead of a number.
+ */
+function wordLengthExpr(
+  dsl: string,
+  comparison: LengthComparison = "eq",
+): Condition {
+  if (!dsl) throw new LexiconQueryError("长度不能为空");
+  if (!(comparison in COMPARISON_SYMBOL))
+    throw new LexiconQueryError(`未知的长度比较符：${comparison}`);
+  return { kind: "raw", dsl: `=${COMPARISON_SYMBOL[comparison]}${dsl}` };
+}
+
 function path(
   segments: readonly string[],
   depth: "children" | "descendants" = "children",
@@ -140,6 +155,7 @@ export const lex = {
   pinyin,
   pinyinRegex,
   wordLength,
+  wordLengthExpr,
   path,
   enum: enumValue,
   index,
@@ -337,6 +353,7 @@ export function renderExpression(
   name: string,
   query?: LexiconQueryBuilder | string,
   field = "",
+  cacheName = "",
 ): string {
   if (!name) throw new LexiconQueryError("词库名不能为空");
   if (/[[\]{}]/.test(name))
@@ -345,5 +362,6 @@ export function renderExpression(
     throw new LexiconQueryError(`字段名含有保留字符：${field}`);
   const dsl = typeof query === "string" ? query : query?.build() ?? "";
   const target = field ? `${name}.${field}` : name;
-  return `[[${target}${dsl ? `{${dsl}}` : ""}]]`;
+  const cache = cacheName ? `>${cacheName}` : "";
+  return `[[${target}${dsl ? `{${dsl}}` : ""}${cache}]]`;
 }

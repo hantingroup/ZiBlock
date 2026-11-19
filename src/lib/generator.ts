@@ -440,7 +440,8 @@ function lexiconCode(block: Blockly.Block): string {
   const name = String(block.getFieldValue('NAME') ?? '');
   if (!name) return '';
   const field = String(block.getFieldValue('FIELD') ?? '');
-  return renderExpression(name, queryCode(block), field);
+  const cacheName = escapedSlotText(block, 'CNAME');
+  return renderExpression(name, queryCode(block), field, cacheName);
 }
 
 Generator.forBlock['lexicon'] = (block: Blockly.Block): [string, number] => [
@@ -472,14 +473,16 @@ Generator.forBlock['lexicon_pinyin_regex'] = (block: Blockly.Block): string =>
   renderCondition(block, () => lex.pinyinRegex(slotCode(block, 'PATTERN')));
 
 Generator.forBlock['lexicon_length'] = (block: Blockly.Block): string => {
+  const comparison = String(
+    block.getFieldValue('COMPARISON'),
+  ) as LengthComparison;
   const value = slotNumber(block, 'LENGTH');
-  if (value === undefined) return '';
-  return renderCondition(block, () =>
-    lex.wordLength(
-      value,
-      String(block.getFieldValue('COMPARISON')) as LengthComparison,
-    ),
-  );
+  if (value !== undefined)
+    return renderCondition(block, () => lex.wordLength(value, comparison));
+  // The length may be computed, e.g. `=[[3-6>k]]`: keep the expression.
+  const code = slotCode(block, 'LENGTH').trim();
+  if (!code) return '';
+  return renderCondition(block, () => lex.wordLengthExpr(code, comparison));
 };
 
 Generator.forBlock['lexicon_path'] = (block: Blockly.Block): string => {

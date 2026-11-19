@@ -73,6 +73,9 @@
       type: input_statement
       name: QUERY
       check: "TzQuery"
+  message2: "写名 %1"
+  args2:
+    - { type: field_input, name: CNAME }
   <<:
     <<: *text
     style: lexicon_blocks
