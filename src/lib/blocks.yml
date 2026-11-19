@@ -349,7 +349,8 @@
     helpUrl: "https://tianzi.hongbot.icu/howto#引用-reference"
 
 - type: variables_set
-  inputsInline: true
+  # Like 随机数: every slot gets its own row.
+  inputsInline: false
   message0: 设置 %1 为 %2
   args0:
     # Both parts are value slots. The 写名 starts on a variable dropdown, the
@@ -394,6 +395,8 @@
   helpUrl: "https://tianzi.hongbot.icu/howto#LingerAssign"
 
 - type: inner_value_set
+  # Like 随机数: every slot gets its own row.
+  inputsInline: false
   message0: 写入内部值 %1 名 %2
   args0:
     - { type: field_input, name: FIELD, text: Range }
