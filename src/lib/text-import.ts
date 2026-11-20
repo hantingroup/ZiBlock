@@ -216,6 +216,62 @@ function setBody(
   else setInput(state, input, { shadow: literal(captured?.text ?? "") });
 }
 
+/**
+ * Splits a captured body into text gaps and nested fields, so mixed content
+ * becomes a chain of real blocks with 文本 blocks between them instead of one
+ * raw text block.
+ */
+function bodyStates(
+  captured: TianziGroup,
+  node: TianziAstNode,
+  index: NodeIndex,
+): BlockState[] {
+  const start = captured.span[0];
+  const children = index
+    .childrenOf(node.field_span)
+    .filter(
+      (child) =>
+        child.span[0] >= captured.span[0] &&
+        child.span[1] <= captured.span[1],
+    )
+    .sort((a, b) => a.span[0] - b.span[0]);
+
+  const states: BlockState[] = [];
+  let cursor = 0;
+  for (const child of children) {
+    const from = child.span[0] - start;
+    const to = child.span[1] - start;
+    if (from < cursor) continue;
+    if (from > cursor) {
+      const text = captured.text.slice(cursor, from);
+      if (text) states.push({ type: "text_multiline", fields: { TEXT: text } });
+    }
+    states.push(buildNode(child.node, index));
+    cursor = to;
+  }
+  if (cursor < captured.text.length) {
+    const text = captured.text.slice(cursor);
+    if (text) states.push({ type: "text_multiline", fields: { TEXT: text } });
+  }
+  return states;
+}
+
+/** The blocks for a statement body, chained; plain text becomes 文本 blocks. */
+function statementState(
+  node: TianziAstNode,
+  index: NodeIndex,
+  name: string,
+): BlockState {
+  const captured = group(node, name);
+  if (!captured) return { type: "text_multiline", fields: { TEXT: "" } };
+  return (
+    chain(bodyStates(captured, node, index)) ?? {
+      type: "text_multiline",
+      fields: { TEXT: captured.text },
+    }
+  );
+}
+
 /** A statement input; plain text becomes a 文本 block in the chain. */
 function setStatement(
   state: BlockState,
@@ -224,13 +280,7 @@ function setStatement(
   name: string,
   input = "BODY",
 ) {
-  const captured = group(node, name);
-  const child = index.choose(captured?.span);
-  setInput(state, input, {
-    block: child
-      ? buildNode(child, index)
-      : { type: "text_multiline", fields: { TEXT: captured?.text ?? "" } },
-  });
+  setInput(state, input, { block: statementState(node, index, name) });
 }
 
 function isNumeric(text: string): boolean {
@@ -415,7 +465,12 @@ const BUILDERS: Record<
     if (query?.error)
       throw new TextImportError(`词库查询语法有误：${query.error}`);
     const conditions = query
-      ? queryStates(query.ast ?? [], node.children ?? [], index)
+      ? queryStates(
+          query.ast ?? [],
+          node.children ?? [],
+          index,
+          group(node, "query"),
+        )
       : [];
     const first = chain(conditions);
     if (first) setInput(state, "QUERY", { block: first });
@@ -710,16 +765,18 @@ function queryStates(
   nodes: readonly TianziQueryNode[],
   nested: readonly TianziAstNode[],
   index: NodeIndex,
+  original?: TianziGroup,
 ): BlockState[] {
   const root = nodes[0];
   if (!root) return [];
-  return queryNode(root, nested, index);
+  return queryNode(root, nested, index, original);
 }
 
 function queryNode(
   node: TianziQueryNode,
   nested: readonly TianziAstNode[],
   index: NodeIndex,
+  original?: TianziGroup,
 ): BlockState[] {
   if (node.kind === "and") {
     const states: BlockState[] = [];
@@ -727,7 +784,7 @@ function queryNode(
       // A nested OR would need DNF expansion; the generator never emits it.
       if (child.kind === "or")
         throw new TextImportError("暂不支持嵌套的或分支");
-      states.push(...queryNode(child, nested, index));
+      states.push(...queryNode(child, nested, index, original));
     }
     return states;
   }
@@ -737,11 +794,11 @@ function queryNode(
     for (const child of node.children ?? []) {
       if (!first) states.push({ type: "lexicon_or" });
       first = false;
-      states.push(...queryNode(child, nested, index));
+      states.push(...queryNode(child, nested, index, original));
     }
     return states;
   }
-  if (node.kind === "seg") return segmentStates(node, nested, index);
+  if (node.kind === "seg") return segmentStates(node, nested, index, original);
   throw new TextImportError(`暂不支持的查询节点：${node.kind}`);
 }
 
@@ -749,10 +806,11 @@ function segmentStates(
   segment: TianziQueryNode,
   nested: readonly TianziAstNode[],
   index: NodeIndex,
+  original?: TianziGroup,
 ): BlockState[] {
   const conditions = (segment.children ?? [])
     .filter((child) => child.kind === "tok")
-    .map((token) => tokenState(token, nested, index));
+    .map((token) => tokenState(token, nested, index, original));
   if (conditions.length === 0) throw new TextImportError("查询段为空");
 
   let states = conditions;
@@ -786,25 +844,56 @@ function nestedTokenNode(
     : undefined;
 }
 
+/**
+ * The original text of a token, sliced out of the query group. Query tokens
+ * report rewritten values (`://?1` loses its wildcard prefix if only the
+ * pinyin group is used, and nested fields are evaluated away), so the original
+ * slice keeps the wildcard spec and any nested `[[…]]` expression intact.
+ */
+function originalTokenText(
+  token: TianziQueryNode,
+  original?: TianziGroup,
+): string | undefined {
+  if (!original) return undefined;
+  const start = token.span[0] - original.span[0];
+  const end = token.span[1] - original.span[0];
+  if (start < 0 || end > original.text.length || end <= start) return undefined;
+  return original.text.slice(start, end);
+}
+
 function tokenState(
   token: TianziQueryNode,
   nested: readonly TianziAstNode[],
   index: NodeIndex,
+  original?: TianziGroup,
 ): BlockState {
   const value = (name: string) => tokenValue(token, name);
   const child = nestedTokenNode(token, nested);
+  const source = originalTokenText(token, original);
 
   switch (token.schema) {
     case "SPinyin": {
       const state: BlockState = { type: "lexicon_pinyin" };
-      if (child) setInput(state, "PATTERN", { block: buildNode(child, index) });
-      else setSlot(state, "lexicon_pinyin", "PATTERN", value("pinyin"));
+      if (source?.startsWith(":")) {
+        // Keep the wildcard spec (`?.zs`, `//?1`, …) and nested expressions.
+        setSlot(state, "lexicon_pinyin", "PATTERN", source.slice(1));
+      } else if (child) {
+        setInput(state, "PATTERN", { block: buildNode(child, index) });
+      } else {
+        const wildcard = token.groups?.wcspec ?? "";
+        setSlot(state, "lexicon_pinyin", "PATTERN", wildcard + value("pinyin"));
+      }
       return state;
     }
     case "SPinyinRegex": {
       const state: BlockState = { type: "lexicon_pinyin_regex" };
-      if (child) setInput(state, "PATTERN", { block: buildNode(child, index) });
-      else setSlot(state, "lexicon_pinyin_regex", "PATTERN", value("regex"));
+      if (source?.startsWith(":/") && source.endsWith("/")) {
+        setSlot(state, "lexicon_pinyin_regex", "PATTERN", source.slice(2, -1));
+      } else if (child) {
+        setInput(state, "PATTERN", { block: buildNode(child, index) });
+      } else {
+        setSlot(state, "lexicon_pinyin_regex", "PATTERN", value("regex"));
+      }
       return state;
     }
     case "SWordLength": {

@@ -564,7 +564,9 @@ Generator.forBlock['range'] = (block: Blockly.Block): [string, number] => [
 
 Generator.forBlock['format'] = (block: Blockly.Block): [string, number] => {
   const body = slotCode(block, 'BODY')
-  const fspec = slotText(block, 'FSPEC')
+  // The spec may start with a fill character (often a space), so keep it
+  // untrimmed.
+  const fspec = slotCode(block, 'FSPEC')
   const fusr = slotCode(block, 'FUSR')
   const cname = slotText(block, 'CNAME')
   if (!body) return ['', ORDER_NONE]
@@ -580,7 +582,8 @@ Generator.forBlock['format'] = (block: Blockly.Block): [string, number] => {
 
 Generator.forBlock['reduce_calc'] = (block: Blockly.Block): [string, number] => {
   const op = slotCode(block, 'OP')
-  const sep = slotText(block, 'SEP') || '，'
+  // A single space is a valid separator, so it must not be trimmed.
+  const sep = slotCode(block, 'SEP') || '，'
   const items = naryCodes(block)
   if (!op || !items.length) return ['', ORDER_NONE]
   return [translate(`#${op} ${items.join(sep)}`), ORDER_NONE]
