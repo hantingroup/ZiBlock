@@ -163,7 +163,7 @@
 - type: lexicon_path
   message0: "路径 %1 %2"
   args0:
-    - { type: field_input, name: PATH, text: "/辽宁省/沈阳市" }
+    - { type: field_input, name: PATH, text: "/山东省/济南市" }
     - type: field_dropdown
       name: DEPTH
       options:

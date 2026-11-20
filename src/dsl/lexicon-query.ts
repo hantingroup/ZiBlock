@@ -7,7 +7,7 @@
  *   :pattern       拼音       :zhishi, :?.zs
  *   :/pattern/     拼音正则   :/zh.shi/
  *   =len           长度       =4, =>4, =<4, =>=4, =<=4
- *   /path/*        路径       /辽宁省/沈阳市/** (** selects all descendants)
+ *   /path/*        路径       /山东省/济南市/** (** selects all descendants)
  *   #value#        枚举       #地级市#
  *   #start..end    索引       #1110000..1120000
  *   /regex/        正则       /萌萌.+/
@@ -301,10 +301,10 @@ function validateSegment(segment: QuerySegment, meta?: LexiconMeta) {
  *
  * ```ts
  * const meta = await fetchLexiconMeta("县以上行政区划");
- * const dsl = lexiconQuery(segment(lex.path(["辽宁省", "沈阳市"], "descendants")), meta)
+ * const dsl = lexiconQuery(segment(lex.path(["山东省", "济南市"], "descendants")), meta)
  *   .and(segment(lex.enum("地级市"), { group: "类型" }))
  *   .build();
- * // /辽宁省/沈阳市/**&#地级市#@类型
+ * // /山东省/济南市/**&#地级市#@类型
  * ```
  */
 export class LexiconQueryBuilder {
