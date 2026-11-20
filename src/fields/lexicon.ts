@@ -282,7 +282,7 @@ export class FieldEnumValue extends Blockly.FieldTextInput {
 
 // Macro name =================================================================
 //
-// Searchable dropdown over the macro table (`src/lib/api/macros.ts`, fetched from
+// Searchable dropdown over the macro table (`src/api/macros.ts`, fetched from
 // the public `reserved/alias.tsv`). Only table entries are valid: unlike the
 // lexicon picker there is no free-text editor.
 

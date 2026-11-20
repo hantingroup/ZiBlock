@@ -1,5 +1,5 @@
 <script module>
-  import ".";
+  import "./setup";
   import * as Blockly from "blockly";
   import { refreshBlockEffectiveness } from "./core/block-state";
   import { migrateWorkspaceState } from "./blocks/shadow-slots";

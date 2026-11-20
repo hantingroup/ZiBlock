@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { resource } from "runed";
-	import toolbox from "./lib/blocks/toolbox.yml";
-	import Workspace from "./lib/Workspace.svelte";
-	import { loadLexiconList } from "./lib/api/lexicons";
-	import { tianziUrl } from "./lib/api/base";
-	import { fetchTianziStack, type TianziStack } from "./lib/api/tianzi";
+	import toolbox from "./blocks/toolbox.yml";
+	import Workspace from "./Workspace.svelte";
+	import { loadLexiconList } from "./api/lexicons";
+	import { tianziUrl } from "./api/base";
+	import { fetchTianziStack, type TianziStack } from "./api/tianzi";
 
 	let compiledCode = $state("");
 	let compileError = $state("");
