@@ -139,8 +139,9 @@ export async function fetchTianziStack(
   cmd: string,
   options: { signal?: AbortSignal } = {},
 ): Promise<TianziStack> {
-  // A hung request would leave the import dialog spinning forever.
-  const timeout = AbortSignal.timeout(20_000);
+  // The engine can spend a while on heavy lexicon queries (around a minute
+  // has been observed), so keep a generous cap; a hung request still ends.
+  const timeout = AbortSignal.timeout(120_000);
   const signal = options.signal
     ? AbortSignal.any([options.signal, timeout])
     : timeout;
@@ -162,9 +163,18 @@ export async function fetchTianziStack(
     );
   }
 
-  const payload: TianziResponse | undefined = await response
-    .json()
-    .catch(() => undefined);
+  let payload: TianziResponse | undefined;
+  try {
+    payload = await response.json();
+  } catch (error) {
+    // Reading the body is aborted with the same signal, so a timeout here is
+    // not a malformed response.
+    throw new TianziApiError(
+      timeout.aborted ? "填字服务请求超时" : "填字服务返回了无法解析的响应",
+      undefined,
+      error,
+    );
+  }
 
   if (!response.ok) {
     const detail =
