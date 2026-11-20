@@ -222,7 +222,7 @@ function setupMapRuns(block: Blockly.Block, minimum = 1) {
   };
 }
 
-// These blocks live in code instead of blocks.yml: the n-ary inputs and their
+// These blocks live in code instead of `blocks/definitions.yml`: the n-ary inputs and their
 // extra state are part of init, which a non-mutator extension is not allowed to
 // change.
 

@@ -7,8 +7,8 @@
  */
 
 import * as Blockly from "blockly";
-import { FONT_NAMES } from "./fonts";
-import { FlexibleDropdown } from "./dropdown-field";
+import { FONT_NAMES } from "../utils/fonts";
+import { FlexibleDropdown } from "./flexible-dropdown";
 
 /** String filters accepted by Tianzi's `Filter` translator. */
 const FILTER_OPS: readonly (readonly [label: string, value: string])[] = [

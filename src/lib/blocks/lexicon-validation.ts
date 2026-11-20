@@ -11,18 +11,18 @@ import {
   conditionsForGroup,
   groupsForCondition,
   type Condition,
-} from "./query";
+} from "../dsl/lexicon-query";
 import {
   getCachedLexiconMeta,
   isKnownLexiconName,
   loadLexiconMeta,
-} from "./api";
+} from "../api/lexicons";
 import {
   conditionKind,
   findEnclosingLexicon,
   lexiconBlockName,
   lexiconName,
-} from "./context";
+} from "../dsl/lexicon-context";
 
 function conditionKindLabel(kind: Condition["kind"]): string {
   return {

@@ -8,14 +8,14 @@ import {
   segment,
   type Condition,
   type LengthComparison,
-} from './lexicons/query';
-import { getCachedLexiconMeta, type LexiconMeta } from './lexicons/api';
+} from '../dsl/lexicon-query';
+import { getCachedLexiconMeta, type LexiconMeta } from '../api/lexicons';
 import {
   conditionKind,
   findEnclosingLexicon,
   lexiconBlockName,
-} from './lexicons/context';
-import { isFilterOp } from './transforms';
+} from '../dsl/lexicon-context';
+import { isFilterOp } from '../fields/transform';
 
 export const Symbols = {
   // Symbols

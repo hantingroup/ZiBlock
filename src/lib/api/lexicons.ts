@@ -6,17 +6,7 @@
  *   GET /api/lex/jsonmeta/<name>   columns and queryable schema groups
  */
 
-export const LEXICON_API_ORIGIN = "https://tianzi.hongbot.icu";
-
-/**
- * Every request to the Tianzi service carries this marker so the service can
- * tell where the traffic comes from.
- */
-export function tianziUrl(path: string): URL {
-  const url = new URL(path, LEXICON_API_ORIGIN);
-  url.searchParams.set("shsrc", "ziblock");
-  return url;
-}
+import { tianziUrl } from "./base";
 
 // Wire model =================================================================
 

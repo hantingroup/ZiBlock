@@ -6,7 +6,7 @@
  * turns back into blocks.
  */
 
-import { tianziUrl } from "./lexicons/api";
+import { tianziUrl } from "./base";
 
 /** Half-open `[start, end)` offsets into the submitted command. */
 export type TianziSpan = readonly [number, number];

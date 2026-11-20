@@ -5,7 +5,7 @@
  * value input with a literal *shadow* block: the shadow shows an editable
  * field in place, and any reporter with an output connection can cover it.
  *
- * `blocks.yml` keeps using `field_input` / `field_number` /
+ * `blocks/definitions.yml` keeps using `field_input` / `field_number` /
  * `field_multilinetext`, plus `field_dropdown` / `field_variable` where the
  * definition marks it with `shadow: true`; `prepareShadowSlots` rewrites those
  * arguments into value inputs and remembers the shadow each one starts with.

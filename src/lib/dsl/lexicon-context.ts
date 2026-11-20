@@ -8,7 +8,7 @@
  */
 
 import * as Blockly from "blockly";
-import type { Condition } from "./query";
+import type { Condition } from "./lexicon-query";
 
 /** Block type → DSL condition kind for the query condition blocks. */
 export const CONDITION_KINDS: Record<string, Condition["kind"] | undefined> = {

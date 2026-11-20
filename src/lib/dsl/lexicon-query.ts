@@ -16,7 +16,7 @@
  * `!` negates a segment and `@组` selects the schema group that runs it.
  */
 
-import type { LexiconMeta, LexiconSchema } from "./api";
+import type { LexiconMeta, LexiconSchema } from "../api/lexicons";
 
 export class LexiconQueryError extends Error {
   override readonly name = "LexiconQueryError";

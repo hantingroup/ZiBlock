@@ -37,28 +37,38 @@ src/
 └── lib/
     ├── Workspace.svelte    注入 Blockly、生成文本、恢复/保存画布、导入接口
     ├── index.ts            注册语言包、字段、积木、YAML 定义、宏表预热
-    ├── blocks.yml          积木定义（YAML，加载时转换为 Blockly JSON）
-    ├── toolbox.yml         工具箱分类
-    ├── generator.ts        填字 DSL 代码生成器（Blockly.Generator）
-    ├── shadow-slots.ts     文本/数字字段 → 可替换的值槽 + 影子积木
-    ├── dual-connections.ts 表达式积木同时具备语句连接
-    ├── nary-inputs.ts      choice / reduce_calc / map 的动态多路输入
-    ├── transforms.ts       字体/滤镜二合一选择器
-    ├── macros.ts           远程宏表（alias.tsv）与缓存
-    ├── dropdown-field.ts   可搜索的长下拉菜单基类
-    ├── block-state.ts      无输出的积木自动置灰
-    ├── theme.ts / fonts.ts 主题与字体别名
-    ├── tianzi.ts           Tianzi 执行/AST 接口客户端
-    ├── text-import.ts      语法树 → 积木（文本导入）
-    └── lexicons/           词库接口、查询 DSL、字段、校验、条件面板
-        ├── api.ts          词库列表 / 元信息缓存
-        ├── query.ts        查询 DSL 构造与校验
-        ├── blocks.ts       词库积木注册与联动
-        ├── fields.ts       词库名/组/输出列/枚举/宏 字段
-        ├── palette.ts      查询条件的齿轮飞出菜单
-        ├── validation.ts   查询块的警告与跨块校验
-        └── context.ts      查找所属词库/组
+    ├── blocks/             积木定义、注册与画布交互
+    │   ├── definitions.yml 积木定义（YAML，加载时转换为 Blockly JSON）
+    │   ├── toolbox.yml     工具箱分类
+    │   ├── shadow-slots.ts 文本/数字字段 → 可替换的值槽 + 影子积木
+    │   ├── nary-inputs.ts  choice / reduce_calc / map 的动态多路输入
+    │   ├── dual-connections.ts 表达式积木同时具备语句连接
+    │   ├── lexicon.ts      词库积木注册与联动
+    │   ├── lexicon-palette.ts   查询条件的齿轮飞出菜单
+    │   └── lexicon-validation.ts 查询块的警告与跨块校验
+    ├── core/               生成器与运行状态
+    │   ├── generator.ts    填字 DSL 代码生成器（Blockly.Generator）
+    │   ├── block-state.ts  无输出的积木自动置灰
+    │   └── theme.ts        画布主题
+    ├── dsl/                与 Blockly 解耦的查询 DSL
+    │   ├── lexicon-query.ts    查询 DSL 构造与校验
+    │   └── lexicon-context.ts  查找所属词库/组
+    ├── fields/             自定义字段
+    │   ├── flexible-dropdown.ts 可搜索的长下拉菜单基类
+    │   ├── transform.ts    字体/滤镜二合一选择器
+    │   └── lexicon.ts      词库名/组/输出列/枚举/宏 字段
+    ├── api/                远端服务客户端
+    │   ├── base.ts         服务地址与 shsrc 标记
+    │   ├── lexicons.ts     词库列表 / 元信息缓存
+    │   ├── macros.ts       远程宏表（alias.tsv）与缓存
+    │   └── tianzi.ts       Tianzi 执行/AST 接口客户端
+    ├── import/
+    │   └── text-import.ts  语法树 → 积木（文本导入）
+    └── utils/
+        └── fonts.ts        字体别名表
 ```
+
+每个文件的职责与依赖关系见 [`src/lib/README.md`](src/lib/README.md)。
 
 ## 核心概念
 
@@ -103,10 +113,10 @@ Blockly 的字段不能接收积木。`blocks.yml` 仍写 `field_input` / `field
 
 流程：
 
-1. `src/lib/tianzi.ts` 调用 `POST /api/tianzi`，请求体带上 `stack: true`；
+1. `src/lib/api/tianzi.ts` 调用 `POST /api/tianzi`，请求体带上 `stack: true`；
 2. 服务端返回每个 `[[…]]` 字段的语法候选（`syntax`、`status`、`groups`、
    `children`），词库查询还会给出 `query.ast`；
-3. `src/lib/text-import.ts` 按字段位置还原积木，`[[…]]` 之外的非空文本还原为
+3. `src/lib/import/text-import.ts` 按字段位置还原积木，`[[…]]` 之外的非空文本还原为
    「文本」积木，最后串成一条语句链追加到画布上。
 
 优先级规则：`ok` > `raised:*` > 具体的 `rejected` 候选；

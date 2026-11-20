@@ -9,14 +9,14 @@
  */
 
 import * as Blockly from "blockly";
-import { addConditionPalette, syncLexiconQueryRow } from "./palette";
+import { addConditionPalette, syncLexiconQueryRow } from "./lexicon-palette";
 import {
   getCachedLexiconMeta,
   isKnownLexiconName,
   loadLexiconMeta,
   type LexiconMeta,
-} from "./api";
-import { lexiconName } from "./context";
+} from "../api/lexicons";
+import { lexiconName } from "../dsl/lexicon-context";
 import {
   FieldEnumValue,
   FieldGroupName,
@@ -24,13 +24,13 @@ import {
   FieldLexiconName,
   columnOptions,
   schemaGroupOptions,
-} from "./fields";
+} from "../fields/lexicon";
 import {
   refreshLexiconChildren,
   validateConditionBlock,
   validateGroupBlock,
   validateNotBlock,
-} from "./validation";
+} from "./lexicon-validation";
 
 function updateLexiconBlock(block: Blockly.Block) {
   const name = String(block.getFieldValue("NAME") ?? "");

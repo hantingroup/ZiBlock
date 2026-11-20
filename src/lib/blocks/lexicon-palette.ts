@@ -10,13 +10,13 @@
  */
 
 import * as Blockly from "blockly";
-import { groupsForCondition } from "./query";
-import { CONDITION_KINDS } from "./context";
+import { groupsForCondition } from "../dsl/lexicon-query";
+import { CONDITION_KINDS } from "../dsl/lexicon-context";
 import {
   getCachedLexiconMeta,
   loadLexiconMeta,
   type LexiconMeta,
-} from "./api";
+} from "../api/lexicons";
 
 const QUERY_BLOCK_TYPES = [
   "lexicon_length",

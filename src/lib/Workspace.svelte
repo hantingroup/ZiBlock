@@ -1,9 +1,9 @@
 <script module>
   import ".";
   import * as Blockly from "blockly";
-  import { refreshBlockEffectiveness } from "./block-state";
-  import { migrateWorkspaceState } from "./shadow-slots";
-  import { AppTheme } from "./theme";
+  import { refreshBlockEffectiveness } from "./core/block-state";
+  import { migrateWorkspaceState } from "./blocks/shadow-slots";
+  import { AppTheme } from "./core/theme";
 
   // The default (15px) is chunky next to the grid; keep scrolling usable but
   // visually lighter. Must be set before Blockly.inject creates scrollbars.
@@ -52,9 +52,9 @@
 </script>
 
 <script lang="ts">
-  import Generator from "./generator";
-  import { workspaceStateFromStack } from "./text-import";
-  import type { TianziStack } from "./tianzi";
+  import Generator from "./core/generator";
+  import { workspaceStateFromStack } from "./import/text-import";
+  import type { TianziStack } from "./api/tianzi";
 
   let {
     value = $bindable<string>(),

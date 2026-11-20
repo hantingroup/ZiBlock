@@ -14,14 +14,14 @@
  */
 
 import type * as Blockly from "blockly";
-import { SHADOW_SLOTS, shadowState } from "./shadow-slots";
+import { SHADOW_SLOTS, shadowState } from "../blocks/shadow-slots";
 import type {
   TianziAstNode,
   TianziGroup,
   TianziQueryNode,
   TianziSpan,
   TianziStack,
-} from "./tianzi";
+} from "../api/tianzi";
 
 type BlockState = Blockly.serialization.blocks.State;
 

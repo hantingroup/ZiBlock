@@ -1,18 +1,18 @@
 import * as Blockly from "blockly";
 import * as zhHans from "blockly/msg/zh-hans";
 import { registerFieldMultilineInput } from "@blockly/field-multilineinput";
-import "./dual-connections";
-import "./lexicons/fields";
-import "./lexicons/blocks";
-import "./nary-inputs";
-import "./transforms";
-import { loadMacroEntries } from "./macros";
-import blockArray from "./blocks.yml";
+import "./blocks/dual-connections";
+import "./fields/lexicon";
+import "./blocks/lexicon";
+import "./blocks/nary-inputs";
+import "./fields/transform";
+import { loadMacroEntries } from "./api/macros";
+import blockArray from "./blocks/definitions.yml";
 import {
   defineLiteralBlocks,
   prepareShadowSlots,
   registerShadowSlotExtension,
-} from "./shadow-slots";
+} from "./blocks/shadow-slots";
 
 Blockly.setLocale(zhHans as any);
 registerFieldMultilineInput();
