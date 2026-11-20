@@ -8,6 +8,16 @@
 
 export const LEXICON_API_ORIGIN = "https://tianzi.hongbot.icu";
 
+/**
+ * Every request to the Tianzi service carries this marker so the service can
+ * tell where the traffic comes from.
+ */
+export function tianziUrl(path: string): URL {
+  const url = new URL(path, LEXICON_API_ORIGIN);
+  url.searchParams.set("shsrc", "ziblock");
+  return url;
+}
+
 // Wire model =================================================================
 
 export type KnownColumnType =
@@ -214,7 +224,7 @@ async function requestJson(
 ): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetch(new URL(path, LEXICON_API_ORIGIN), { signal });
+    response = await fetch(tianziUrl(path), { signal });
   } catch (error) {
     if (signal?.aborted) throw error;
     throw new LexiconApiError("无法连接词库服务", undefined, error);

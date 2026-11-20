@@ -2,7 +2,7 @@
 	import { resource } from "runed";
 	import toolbox from "./lib/toolbox.yml";
 	import Workspace from "./lib/Workspace.svelte";
-	import { loadLexiconList, LEXICON_API_ORIGIN } from "./lib/lexicons/api";
+	import { loadLexiconList, tianziUrl } from "./lib/lexicons/api";
 	import { fetchTianziStack, type TianziStack } from "./lib/tianzi";
 
 	let compiledCode = $state("");
@@ -61,7 +61,7 @@
 	const executeResource = resource(
 		() => compiledCode,
 		async (cmd, _, { signal }) => {
-			const res = await fetch(`${LEXICON_API_ORIGIN}/api/tianzi`, {
+			const res = await fetch(tianziUrl("/api/tianzi"), {
 				signal,
 				method: "POST",
 				headers: { "Content-Type": "application/json" },

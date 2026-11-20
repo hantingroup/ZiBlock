@@ -6,7 +6,7 @@
  * turns back into blocks.
  */
 
-import { LEXICON_API_ORIGIN } from "./lexicons/api";
+import { tianziUrl } from "./lexicons/api";
 
 /** Half-open `[start, end)` offsets into the submitted command. */
 export type TianziSpan = readonly [number, number];
@@ -147,7 +147,7 @@ export async function fetchTianziStack(
 
   let response: Response;
   try {
-    response = await fetch(`${LEXICON_API_ORIGIN}/api/tianzi`, {
+    response = await fetch(tianziUrl("/api/tianzi"), {
       signal,
       method: "POST",
       headers: { "Content-Type": "application/json" },
