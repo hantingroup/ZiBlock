@@ -283,6 +283,17 @@ function migrateBlock(block: unknown): void {
   // still load, and let the slot migration below turn the name into a shadow.
   if (state.type === "variables_set_block") state.type = "variables_set";
 
+  // The 遍历 trim used to be a shadow slot; it is a plain dropdown now.
+  if (state.type === "map" && state.inputs?.TRIM) {
+    const trim = state.inputs.TRIM as {
+      shadow?: { fields?: { TEXT?: unknown } };
+    };
+    const value = trim.shadow?.fields?.TEXT;
+    if (state.fields?.TRIM === undefined && typeof value === "string")
+      state.fields = { ...state.fields, TRIM: value };
+    delete state.inputs.TRIM;
+  }
+
   const slots = state.type ? SHADOW_SLOTS.get(state.type) : undefined;
   if (slots && state.fields) {
     for (const slot of slots) {

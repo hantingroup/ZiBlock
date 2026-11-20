@@ -18,6 +18,7 @@ const PREFIX = "ITEM";
 const MAP_STRING = "STRING";
 const MAP_VAR = "VAR";
 const MAP_TRIM = "TRIM";
+const MAP_TRIM_ROW = "TRIM_ROW";
 
 /** How Map trims the result; the value is the DSL suffix. */
 const MAP_TRIM_OPTIONS: Blockly.MenuOption[] = [
@@ -26,15 +27,6 @@ const MAP_TRIM_OPTIONS: Blockly.MenuOption[] = [
   ["仅标点", "..!"],
   ["仅推断", "..?"],
 ];
-
-SHADOW_SLOTS.set("map", [
-  {
-    input: MAP_TRIM,
-    shadowType: "literal_dropdown",
-    value: "",
-    options: MAP_TRIM_OPTIONS,
-  },
-]);
 
 /** The reductions offered by reduce_calc, as a replaceable dropdown slot. */
 const REDUCE_OPS: Blockly.MenuOption[] = [
@@ -165,8 +157,8 @@ function appendMapPair(block: Blockly.Block, index: number) {
     .appendField("变量")
     .setCheck(["String"]);
   // The trim row stays after every pair.
-  block.moveInputBefore(`${MAP_STRING}${index}`, MAP_TRIM);
-  block.moveInputBefore(`${MAP_VAR}${index}`, MAP_TRIM);
+  block.moveInputBefore(`${MAP_STRING}${index}`, MAP_TRIM_ROW);
+  block.moveInputBefore(`${MAP_VAR}${index}`, MAP_TRIM_ROW);
   stringInput.connection?.setShadowState({
     type: "literal_text",
     fields: { TEXT: "" },
@@ -291,8 +283,6 @@ Blockly.common.defineBlocks({
         message0: "遍历",
         message1: "%1",
         args1: [{ type: "input_statement", name: "BODY", check: "TzText" }],
-        message2: "修剪 %1",
-        args2: [{ type: "input_value", name: MAP_TRIM }],
         output: "String",
         style: "loop_blocks",
         inputsInline: false,
@@ -300,13 +290,12 @@ Blockly.common.defineBlocks({
           "在字符串的每个字符上执行一次内容；串与变量成对出现，可以有多组，次数以最长的串为准",
         helpUrl: "https://tianzi.hongbot.icu/howto#Map",
       });
-      this.getInput(MAP_TRIM)?.connection?.setShadowState(
-        shadowState({
-          input: MAP_TRIM,
-          shadowType: "literal_dropdown",
-          value: "",
-          options: MAP_TRIM_OPTIONS,
-        }),
+      // Named so the pair inputs can be moved in front of it.
+      const trimRow = this.appendDummyInput(MAP_TRIM_ROW);
+      trimRow.appendField("修剪");
+      trimRow.appendField(
+        new Blockly.FieldDropdown(MAP_TRIM_OPTIONS),
+        MAP_TRIM,
       );
       this.setPreviousStatement(true, "TzText");
       this.setNextStatement(true, "TzText");

@@ -377,7 +377,7 @@ const BUILDERS: Record<
     });
     state.extraState = { pairCount: pairs.length };
     setStatement(state, node, index, "target", "BODY");
-    setSlot(state, "map", "TRIM", group(node, "trim")?.text ?? "");
+    state.fields = { TRIM: group(node, "trim")?.text ?? "" };
     return state;
   },
 

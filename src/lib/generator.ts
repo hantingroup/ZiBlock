@@ -619,7 +619,7 @@ Generator.forBlock['map'] = (block: Blockly.Block): [string, number] => {
     if (string && name) runs.push(`@${string}>${name}`);
   }
   if (!body || runs.length === 0) return ['', ORDER_NONE];
-  const trim = slotText(block, 'TRIM');
+  const trim = String(block.getFieldValue('TRIM') ?? '');
   return [translate(`${body}*${runs.join('')}${trim}`), ORDER_NONE];
 };
 
